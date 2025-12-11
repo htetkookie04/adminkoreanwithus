@@ -6,6 +6,9 @@
   # Publish directory - Vite outputs to 'dist' by default
   publish = "dist"
 
+[build.environment]
+  VITE_API_URL = "https://adminkoreanwithus.onrender.com"
+
 # Redirect rules for SPA routing
 [[redirects]]
   from = "/*"

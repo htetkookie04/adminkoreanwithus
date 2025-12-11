@@ -1,8 +1,10 @@
 [build]
-  # Build command - adjust if your frontend is in a subdirectory
-  command = "cd frontend && npm install && npm run build"
+  # Base directory is the frontend folder
+  base = "frontend"
+  # Build command - no need to cd since base is already frontend
+  command = "npm install && npm run build"
   # Publish directory - Vite outputs to 'dist' by default
-  publish = "frontend/dist"
+  publish = "dist"
 
 # Redirect rules for SPA routing
 [[redirects]]

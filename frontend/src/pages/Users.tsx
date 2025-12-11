@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUsers, useCreateUser } from '../hooks/useUsers'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, User } from '../hooks/useUsers'
 import Modal from '../components/Modal'
 import UserForm, { UserFormData } from '../components/forms/UserForm'
 
@@ -8,37 +8,74 @@ export default function Users() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
 
   const { data, isLoading } = useUsers({ page, per_page: 20, q: search || undefined })
   const createUserMutation = useCreateUser()
+  const updateUserMutation = useUpdateUser()
+  const deleteUserMutation = useDeleteUser()
 
   const users = data?.data || []
   const totalPages = data?.pagination?.total_pages || 1
 
   const handleSubmit = async (formData: UserFormData) => {
-    await createUserMutation.mutateAsync(formData)
+    if (editingUser) {
+      await updateUserMutation.mutateAsync({ id: editingUser.id, data: formData })
+    } else {
+      await createUserMutation.mutateAsync(formData)
+    }
     setIsModalOpen(false)
+    setEditingUser(null)
+  }
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user)
+    setIsModalOpen(true)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      await deleteUserMutation.mutateAsync(id)
+    }
+  }
+
+  const handleAdd = () => {
+    setEditingUser(null)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingUser(null)
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+        <button className="btn btn-primary" onClick={handleAdd}>
           + Add User
         </button>
       </div>
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Add New User"
+        onClose={handleCloseModal}
+        title={editingUser ? 'Edit User' : 'Add New User'}
         size="md"
       >
         <UserForm
           onSubmit={handleSubmit}
-          onCancel={() => setIsModalOpen(false)}
-          isLoading={createUserMutation.isPending}
+          onCancel={handleCloseModal}
+          isLoading={editingUser ? updateUserMutation.isPending : createUserMutation.isPending}
+          initialData={editingUser ? {
+            email: editingUser.email,
+            firstName: editingUser.first_name,
+            lastName: editingUser.last_name,
+            phone: editingUser.phone,
+            roleId: editingUser.role_id,
+            status: editingUser.status as 'active' | 'suspended' | 'archived'
+          } : undefined}
         />
       </Modal>
 
@@ -97,12 +134,27 @@ export default function Users() {
                   </td>
                   <td>{new Date(user.created_at).toLocaleDateString()}</td>
                   <td>
-                    <Link
-                      to={`/users/${user.id}`}
-                      className="text-primary-600 hover:text-primary-700 text-sm"
-                    >
-                      View
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        to={`/users/${user.id}`}
+                        className="text-primary-600 hover:text-primary-700 text-sm"
+                      >
+                        View
+                      </Link>
+                      <button
+                        onClick={() => handleEdit(user)}
+                        className="text-primary-600 hover:text-primary-700 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(user.id)}
+                        disabled={deleteUserMutation.isPending}
+                        className="text-red-600 hover:text-red-700 text-sm disabled:opacity-50"
+                      >
+                        {deleteUserMutation.isPending ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

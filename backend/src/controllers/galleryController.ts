@@ -1,14 +1,10 @@
 import { Response, NextFunction } from 'express';
-import { pool } from '../db';
+import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-
-// Mock data store for development
-export let mockGallery: any[] = [];
-let mockGalleryIdCounter = 1;
 
 // Configure multer for file uploads
 const uploadDir = path.join(__dirname, '../../uploads/gallery');
@@ -46,28 +42,27 @@ export const upload = multer({
 
 export const getGallery = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    if (process.env.MOCK_MODE === 'true') {
-      const sorted = [...mockGallery].sort((a, b) => {
-        if (a.sort_order !== b.sort_order) {
-          return a.sort_order - b.sort_order;
-        }
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
+    const entries = await prisma.gallery.findMany({
+      orderBy: [
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
 
-      res.json({
-        success: true,
-        data: sorted
-      });
-    } else {
-      const result = await pool.query(
-        'SELECT * FROM gallery ORDER BY sort_order ASC, created_at DESC'
-      );
+    // Format response
+    const formattedEntries = entries.map(entry => ({
+      id: entry.id,
+      image_url: entry.imageUrl,
+      caption: entry.caption,
+      sort_order: entry.sortOrder,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt
+    }));
 
-      res.json({
-        success: true,
-        data: result.rows
-      });
-    }
+    res.json({
+      success: true,
+      data: formattedEntries
+    });
   } catch (error) {
     next(error);
   }
@@ -75,30 +70,31 @@ export const getGallery = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const getGalleryPublic = async (req: any, res: Response, next: NextFunction) => {
   try {
-    if (process.env.MOCK_MODE === 'true') {
-      const sorted = [...mockGallery]
-        .map(({ id, image_url, caption, sort_order }) => ({ id, image_url, caption, sort_order }))
-        .sort((a, b) => {
-          if (a.sort_order !== b.sort_order) {
-            return a.sort_order - b.sort_order;
-          }
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
+    const entries = await prisma.gallery.findMany({
+      select: {
+        id: true,
+        imageUrl: true,
+        caption: true,
+        sortOrder: true
+      },
+      orderBy: [
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' }
+      ]
+    });
 
-      res.json({
-        success: true,
-        data: sorted
-      });
-    } else {
-      const result = await pool.query(
-        'SELECT id, image_url, caption, sort_order FROM gallery ORDER BY sort_order ASC, created_at DESC'
-      );
+    // Format response
+    const formattedEntries = entries.map(entry => ({
+      id: entry.id,
+      image_url: entry.imageUrl,
+      caption: entry.caption,
+      sort_order: entry.sortOrder
+    }));
 
-      res.json({
-        success: true,
-        data: result.rows
-      });
-    }
+    res.json({
+      success: true,
+      data: formattedEntries
+    });
   } catch (error) {
     next(error);
   }
@@ -112,66 +108,51 @@ export const createGalleryEntry = async (req: AuthRequest, res: Response, next: 
 
     const { caption } = req.body;
 
-    if (process.env.MOCK_MODE === 'true') {
-      // In mock mode, store a placeholder URL or use the file info
-      // For simplicity, we'll use a data URL approach or placeholder
-      const imageUrl = `/uploads/gallery/mock-${mockGalleryIdCounter}${path.extname(req.file.originalname)}`;
-      
-      // Get max sort_order
-      const maxOrder = mockGallery.length > 0 
-        ? Math.max(...mockGallery.map(item => item.sort_order), 0)
-        : 0;
-      const sortOrder = maxOrder + 1;
+    // Construct image URL
+    const imageUrl = `/uploads/gallery/${req.file.filename}`;
 
-      const newEntry = {
-        id: mockGalleryIdCounter++,
-        image_url: imageUrl,
+    // Get max sort_order
+    const maxOrderResult = await prisma.gallery.aggregate({
+      _max: {
+        sortOrder: true
+      }
+    });
+    const sortOrder = (maxOrderResult._max.sortOrder || 0) + 1;
+
+    const entry = await prisma.gallery.create({
+      data: {
+        imageUrl,
         caption: caption || null,
-        sort_order: sortOrder,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+        sortOrder
+      }
+    });
 
-      mockGallery.push(newEntry);
-
-      console.log('\n🖼️  MOCK MODE - Gallery Image Uploaded:');
-      console.log(`   ID: ${newEntry.id}`);
-      console.log(`   Filename: ${req.file.originalname}`);
-      console.log(`   Caption: ${caption || '(none)'}\n`);
-
-      res.status(201).json({
-        success: true,
-        data: newEntry
-      });
-    } else {
-      // Construct image URL (in production, use cloud storage URL)
-      const imageUrl = `/uploads/gallery/${req.file.filename}`;
-
-      // Get max sort_order
-      const maxOrderResult = await pool.query(
-        'SELECT COALESCE(MAX(sort_order), 0) as max_order FROM gallery'
-      );
-      const sortOrder = (maxOrderResult.rows[0].max_order || 0) + 1;
-
-      const result = await pool.query(
-        `INSERT INTO gallery (image_url, caption, sort_order)
-         VALUES ($1, $2, $3)
-         RETURNING *`,
-        [imageUrl, caption || null, sortOrder]
-      );
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id)
-         VALUES ($1, 'gallery.created', 'gallery', $2)`,
-        [req.user?.id, result.rows[0].id]
-      );
-
-      res.status(201).json({
-        success: true,
-        data: result.rows[0]
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'gallery.created',
+          resourceType: 'gallery',
+          resourceId: entry.id
+        }
       });
     }
+
+    // Format response
+    const formattedEntry = {
+      id: entry.id,
+      image_url: entry.imageUrl,
+      caption: entry.caption,
+      sort_order: entry.sortOrder,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      data: formattedEntry
+    });
   } catch (error) {
     next(error);
   }
@@ -182,77 +163,53 @@ export const updateGalleryEntry = async (req: AuthRequest, res: Response, next: 
     const { id } = req.params;
     const { caption, sortOrder } = req.body;
 
-    if (process.env.MOCK_MODE === 'true') {
-      const entryIndex = mockGallery.findIndex(item => item.id === parseInt(id));
-      
-      if (entryIndex === -1) {
-        throw new AppError('Gallery entry not found', 404);
-      }
+    // Build update data
+    const updateData: any = {};
 
-      const entry = mockGallery[entryIndex];
+    if (caption !== undefined) updateData.caption = caption;
+    if (sortOrder !== undefined) updateData.sortOrder = parseInt(sortOrder);
 
-      if (caption !== undefined) {
-        entry.caption = caption;
-      }
-      if (sortOrder !== undefined) {
-        entry.sort_order = parseInt(sortOrder);
-      }
-      entry.updated_at = new Date();
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError('No fields to update', 400);
+    }
 
-      console.log('\n📝 MOCK MODE - Gallery Entry Updated:');
-      console.log(`   ID: ${id}`);
-      console.log(`   Caption: ${entry.caption || '(none)'}\n`);
+    const entry = await prisma.gallery.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    });
 
-      res.json({
-        success: true,
-        data: entry
-      });
-    } else {
-      const updates: string[] = [];
-      const params: any[] = [];
-      let paramCount = 0;
-
-      if (caption !== undefined) {
-        paramCount++;
-        updates.push(`caption = $${paramCount}`);
-        params.push(caption);
-      }
-      if (sortOrder !== undefined) {
-        paramCount++;
-        updates.push(`sort_order = $${paramCount}`);
-        params.push(parseInt(sortOrder));
-      }
-
-      if (updates.length === 0) {
-        throw new AppError('No fields to update', 400);
-      }
-
-      paramCount++;
-      params.push(id);
-
-      const result = await pool.query(
-        `UPDATE gallery SET ${updates.join(', ')}, updated_at = now() WHERE id = $${paramCount}
-         RETURNING *`,
-        params
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError('Gallery entry not found', 404);
-      }
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id, meta)
-         VALUES ($1, 'gallery.updated', 'gallery', $2, $3)`,
-        [req.user?.id, id, JSON.stringify({ changes: req.body })]
-      );
-
-      res.json({
-        success: true,
-        data: result.rows[0]
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'gallery.updated',
+          resourceType: 'gallery',
+          resourceId: parseInt(id),
+          meta: { changes: req.body }
+        }
       });
     }
-  } catch (error) {
+
+    // Format response
+    const formattedEntry = {
+      id: entry.id,
+      image_url: entry.imageUrl,
+      caption: entry.caption,
+      sort_order: entry.sortOrder,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: formattedEntry
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      throw new AppError('Gallery entry not found', 404);
+    }
     next(error);
   }
 };
@@ -265,44 +222,32 @@ export const reorderGallery = async (req: AuthRequest, res: Response, next: Next
       throw new AppError('Items must be an array', 400);
     }
 
-    if (process.env.MOCK_MODE === 'true') {
-      // Update sort_order for each item in mock data
-      for (const item of items) {
-        const entry = mockGallery.find(e => e.id === item.id);
-        if (entry) {
-          entry.sort_order = item.sortOrder;
-          entry.updated_at = new Date();
+    // Update sort_order for each item
+    await Promise.all(
+      items.map(item =>
+        prisma.gallery.update({
+          where: { id: item.id },
+          data: { sortOrder: item.sortOrder }
+        })
+      )
+    );
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'gallery.reordered',
+          resourceType: 'gallery',
+          meta: { items }
         }
-      }
-
-      console.log('\n🔄 MOCK MODE - Gallery Reordered:');
-      console.log(`   Items: ${items.length}\n`);
-
-      res.json({
-        success: true,
-        message: 'Gallery reordered successfully'
-      });
-    } else {
-      // Update sort_order for each item
-      for (const item of items) {
-        await pool.query(
-          'UPDATE gallery SET sort_order = $1 WHERE id = $2',
-          [item.sortOrder, item.id]
-        );
-      }
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, meta)
-         VALUES ($1, 'gallery.reordered', 'gallery', $2)`,
-        [req.user?.id, JSON.stringify({ items })]
-      );
-
-      res.json({
-        success: true,
-        message: 'Gallery reordered successfully'
       });
     }
+
+    res.json({
+      success: true,
+      message: 'Gallery reordered successfully'
+    });
   } catch (error) {
     next(error);
   }
@@ -312,54 +257,47 @@ export const deleteGalleryEntry = async (req: AuthRequest, res: Response, next: 
   try {
     const { id } = req.params;
 
-    if (process.env.MOCK_MODE === 'true') {
-      const entryIndex = mockGallery.findIndex(item => item.id === parseInt(id));
-      
-      if (entryIndex === -1) {
-        throw new AppError('Gallery entry not found', 404);
-      }
+    // Get entry to delete file
+    const entry = await prisma.gallery.findUnique({
+      where: { id: parseInt(id) }
+    });
 
-      const deletedEntry = mockGallery.splice(entryIndex, 1)[0];
+    if (!entry) {
+      throw new AppError('Gallery entry not found', 404);
+    }
 
-      console.log('\n🗑️  MOCK MODE - Gallery Entry Deleted:');
-      console.log(`   ID: ${id}`);
-      console.log(`   Image URL: ${deletedEntry.image_url}\n`);
+    // Delete file from filesystem
+    const imagePath = path.join(__dirname, '../../', entry.imageUrl);
+    if (fs.existsSync(imagePath)) {
+      fs.unlinkSync(imagePath);
+    }
 
-      res.json({
-        success: true,
-        message: 'Gallery entry deleted successfully'
-      });
-    } else {
-      // Get image URL to delete file
-      const result = await pool.query('SELECT image_url FROM gallery WHERE id = $1', [id]);
-      
-      if (result.rows.length === 0) {
-        throw new AppError('Gallery entry not found', 404);
-      }
+    // Delete from database
+    await prisma.gallery.delete({
+      where: { id: parseInt(id) }
+    });
 
-      // Delete file from filesystem
-      const imagePath = path.join(__dirname, '../../', result.rows[0].image_url);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
-
-      // Delete from database
-      await pool.query('DELETE FROM gallery WHERE id = $1', [id]);
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id)
-         VALUES ($1, 'gallery.deleted', 'gallery', $2)`,
-        [req.user?.id, id]
-      );
-
-      res.json({
-        success: true,
-        message: 'Gallery entry deleted successfully'
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'gallery.deleted',
+          resourceType: 'gallery',
+          resourceId: parseInt(id)
+        }
       });
     }
-  } catch (error) {
+
+    res.json({
+      success: true,
+      message: 'Gallery entry deleted successfully'
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      throw new AppError('Gallery entry not found', 404);
+    }
     next(error);
   }
 };
-

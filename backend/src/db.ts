@@ -18,16 +18,12 @@ pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
 });
 
-// Test connection (skip in mock mode)
-if (process.env.MOCK_MODE !== 'true') {
-  pool.query('SELECT NOW()', (err, res) => {
-    if (err) {
-      console.error('Database connection error:', err);
-    } else {
-      console.log('✅ Database connected');
-    }
-  });
-} else {
-  console.log('⚠️  Running in MOCK MODE (no database required)');
-}
+// Test connection
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Database connection error:', err);
+  } else {
+    console.log('✅ Database connected');
+  }
+});
 

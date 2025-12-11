@@ -5,16 +5,12 @@ import {
   getUser,
   createUser,
   updateUser,
-  deleteUser,
-  debugMockUsers
+  deleteUser
 } from '../controllers/usersController';
 
 export const usersRouter = Router();
 
 usersRouter.use(authenticate);
-
-// Debug endpoint (mock mode only)
-usersRouter.get('/debug/credentials', debugMockUsers);
 
 usersRouter.get('/', requirePermission('users', 'view'), getUsers);
 usersRouter.get('/:id', requirePermission('users', 'view'), getUser);

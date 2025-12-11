@@ -5,15 +5,57 @@ export default function Layout() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
 
-  const navigation = [
+  const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
+  const isTeacher = user?.roleName === 'teacher'
+  const isUser = user?.roleName === 'user'
+  const isViewer = user?.roleName === 'viewer'
+  const isStudent = user?.roleName === 'student'
+
+  const baseNavigation = [
     { name: 'Dashboard', href: '/', icon: '📊' },
+    { name: 'Courses', href: '/courses', icon: '📚' }
+  ]
+
+  const adminNavigation = [
     { name: 'Users', href: '/users', icon: '👥' },
-    { name: 'Courses', href: '/courses', icon: '📚' },
     { name: 'Enrollments', href: '/enrollments', icon: '✅' },
+    { name: 'Lectures', href: '/lectures', icon: '🎥' },
     { name: 'Timetable', href: '/timetable', icon: '📅' },
-    { name: 'Gallery', href: '/gallery', icon: '🖼️' },
     { name: 'Settings', href: '/settings', icon: '⚙️' }
   ]
+
+  const teacherNavigation = [
+    { name: 'Courses', href: '/courses', icon: '📚' },
+    { name: 'Lectures', href: '/lectures', icon: '🎥' },
+    { name: 'Timetable', href: '/timetable', icon: '📅' }
+  ]
+
+  const userNavigation = [
+    { name: 'Lectures', href: '/lectures', icon: '🎥' }
+  ]
+
+  const studentNavigation = [
+    { name: 'My Lectures', href: '/my-lectures', icon: '🎥' }
+  ]
+
+  let navigation: typeof baseNavigation = []
+  if (isAdmin) {
+    navigation = [...baseNavigation, ...adminNavigation]
+  } else if (isTeacher) {
+    // Teacher role: Courses, Lectures, and Timetable (no Dashboard, no Enrollments)
+    navigation = [...teacherNavigation]
+  } else if (isUser) {
+    // User role can only see Lectures menu
+    navigation = [...userNavigation]
+  } else if (isViewer) {
+    // Viewer role can only see Lectures menu (no Dashboard)
+    navigation = [...userNavigation]
+  } else if (isStudent) {
+    navigation = [...baseNavigation, ...studentNavigation]
+  } else {
+    // Default fallback
+    navigation = [...baseNavigation]
+  }
 
   const isActive = (path: string) => {
     if (path === '/') {

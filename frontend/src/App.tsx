@@ -12,7 +12,9 @@ import Enrollments from './pages/Enrollments'
 import EnrollmentDetail from './pages/EnrollmentDetail'
 import Settings from './pages/Settings'
 import Timetable from './pages/Timetable'
-import Gallery from './pages/Gallery'
+import Lectures from './pages/Lectures'
+import CourseLecturePage from './pages/CourseLecturePage'
+import MyLectures from './pages/MyLectures'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -38,9 +40,11 @@ function App() {
           <Route path="courses/:id" element={<CourseDetail />} />
           <Route path="enrollments" element={<Enrollments />} />
           <Route path="enrollments/:id" element={<EnrollmentDetail />} />
+          <Route path="lectures" element={<Lectures />} />
+          <Route path="lectures/:courseId" element={<CourseLecturePage />} />
+          <Route path="my-lectures" element={<MyLectures />} />
           <Route path="settings" element={<Settings />} />
           <Route path="timetable" element={<Timetable />} />
-          <Route path="gallery" element={<Gallery />} />
         </Route>
       </Routes>
     </BrowserRouter>

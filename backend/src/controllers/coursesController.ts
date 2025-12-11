@@ -1,70 +1,7 @@
 import { Response, NextFunction } from 'express';
-import { pool } from '../db';
+import { prisma } from '../lib/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
-
-// Mock data store for development
-export let mockCourses: any[] = [
-  {
-    id: 1,
-    title: 'Korean Beginner Course',
-    slug: 'korean-beginner',
-    description: 'Learn basic Korean for beginners',
-    level: 'Beginner',
-    capacity: 20,
-    price: 50000,
-    currency: 'MMK',
-    active: true,
-    created_by: 1,
-    created_at: new Date('2024-01-01'),
-    updated_at: new Date('2024-01-01')
-  },
-  {
-    id: 2,
-    title: 'Korean Intermediate Course',
-    slug: 'korean-intermediate',
-    description: 'Intermediate level Korean language course',
-    level: 'Intermediate',
-    capacity: 15,
-    price: 75000,
-    currency: 'MMK',
-    active: true,
-    created_by: 1,
-    created_at: new Date('2024-01-15'),
-    updated_at: new Date('2024-01-15')
-  }
-];
-let mockCourseIdCounter = 3;
-
-export let mockSchedules: any[] = [
-  {
-    id: 1,
-    course_id: 1, // Korean Beginner Course
-    teacher_id: 2,
-    start_time: '2025-12-15T09:00:00',
-    end_time: '2026-01-15T11:00:00',
-    timezone: 'Asia/Yangon',
-    capacity: 20,
-    location: 'Online - Zoom',
-    status: 'scheduled',
-    created_at: new Date(),
-    updated_at: new Date()
-  },
-  {
-    id: 2,
-    course_id: 2, // Korean Intermediate Course
-    teacher_id: 2,
-    start_time: '2025-12-09T10:40:00',
-    end_time: '2025-12-31T10:40:00',
-    timezone: 'Asia/Yangon',
-    capacity: 2,
-    location: 'Zoom link, classroom address, or TBA',
-    status: 'scheduled',
-    created_at: new Date(),
-    updated_at: new Date()
-  }
-];
-let mockScheduleIdCounter = 3;
 
 export const getCourses = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -77,96 +14,64 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
     } = req.query;
 
     const limit = parseInt(per_page as string);
-    const offset = (parseInt(page as string) - 1) * limit;
+    const skip = (parseInt(page as string) - 1) * limit;
 
-    if (process.env.MOCK_MODE === 'true') {
-      // Mock mode filtering
-      let filtered = [...mockCourses];
+    // Build where clause
+    const where: any = {};
 
-      if (q) {
-        const searchLower = (q as string).toLowerCase();
-        filtered = filtered.filter(c => 
-          c.title.toLowerCase().includes(searchLower) ||
-          c.description?.toLowerCase().includes(searchLower)
-        );
-      }
-
-      if (level) {
-        filtered = filtered.filter(c => c.level === level);
-      }
-
-      if (active !== undefined) {
-        filtered = filtered.filter(c => c.active === (active === 'true'));
-      }
-
-      const total = filtered.length;
-      const paginatedData = filtered.slice(offset, offset + limit);
-
-      res.json({
-        success: true,
-        data: paginatedData,
-        pagination: {
-          page: parseInt(page as string),
-          per_page: limit,
-          total,
-          total_pages: Math.ceil(total / limit)
-        }
-      });
-    } else {
-      let query = `
-        SELECT c.id, c.title, c.slug, c.description, c.level, 
-               c.capacity, c.price, c.currency, c.active, 
-               c.created_at, c.updated_at
-        FROM courses c
-        WHERE 1=1
-      `;
-      const params: any[] = [];
-      let paramCount = 0;
-
-      if (q) {
-        paramCount++;
-        query += ` AND (c.title ILIKE $${paramCount} OR c.description ILIKE $${paramCount})`;
-        params.push(`%${q}%`);
-      }
-
-      if (level) {
-        paramCount++;
-        query += ` AND c.level = $${paramCount}`;
-        params.push(level);
-      }
-
-      if (active !== undefined) {
-        paramCount++;
-        query += ` AND c.active = $${paramCount}`;
-        params.push(active === 'true');
-      }
-
-      // Count total
-      const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) FROM');
-      const countResult = await pool.query(countQuery, params);
-      const total = parseInt(countResult.rows[0].count);
-
-      // Add pagination
-      paramCount++;
-      query += ` ORDER BY c.created_at DESC LIMIT $${paramCount}`;
-      params.push(limit);
-      paramCount++;
-      query += ` OFFSET $${paramCount}`;
-      params.push(offset);
-
-      const result = await pool.query(query, params);
-
-      res.json({
-        success: true,
-        data: result.rows,
-        pagination: {
-          page: parseInt(page as string),
-          per_page: limit,
-          total,
-          total_pages: Math.ceil(total / limit)
-        }
-      });
+    if (q) {
+      where.OR = [
+        { title: { contains: q as string, mode: 'insensitive' } },
+        { description: { contains: q as string, mode: 'insensitive' } }
+      ];
     }
+
+    if (level) {
+      where.level = level as string;
+    }
+
+    if (active !== undefined) {
+      where.active = active === 'true';
+    }
+
+    // Get courses
+    const [courses, total] = await Promise.all([
+      prisma.course.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc'
+        },
+        skip,
+        take: limit
+      }),
+      prisma.course.count({ where })
+    ]);
+
+    // Format response
+    const formattedCourses = courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      level: course.level,
+      capacity: course.capacity,
+      price: course.price,
+      currency: course.currency,
+      active: course.active,
+      created_at: course.createdAt,
+      updated_at: course.updatedAt
+    }));
+
+    res.json({
+      success: true,
+      data: formattedCourses,
+      pagination: {
+        page: parseInt(page as string),
+        per_page: limit,
+        total,
+        total_pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -176,35 +81,39 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
   try {
     const { id } = req.params;
 
-    if (process.env.MOCK_MODE === 'true') {
-      const course = mockCourses.find(c => c.id === parseInt(id));
-      
-      if (!course) {
-        throw new AppError('Course not found', 404);
+    const course = await prisma.course.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        creator: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
       }
+    });
 
-      res.json({
-        success: true,
-        data: course
-      });
-    } else {
-      const result = await pool.query(
-        `SELECT c.*, u.first_name || ' ' || u.last_name as created_by_name
-         FROM courses c
-         LEFT JOIN users u ON c.created_by = u.id
-         WHERE c.id = $1`,
-        [id]
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError('Course not found', 404);
-      }
-
-      res.json({
-        success: true,
-        data: result.rows[0]
-      });
+    if (!course) {
+      throw new AppError('Course not found', 404);
     }
+
+    // Format response
+    const formattedCourse = {
+      ...course,
+      created_by_name: course.creator 
+        ? `${course.creator.firstName} ${course.creator.lastName}` 
+        : null,
+      created_at: course.createdAt,
+      updated_at: course.updatedAt
+    };
+    delete (formattedCourse as any).creator;
+    delete (formattedCourse as any).createdAt;
+    delete (formattedCourse as any).updatedAt;
+
+    res.json({
+      success: true,
+      data: formattedCourse
+    });
   } catch (error) {
     next(error);
   }
@@ -218,67 +127,66 @@ export const createCourse = async (req: AuthRequest, res: Response, next: NextFu
       throw new AppError('Title and slug are required', 400);
     }
 
-    if (process.env.MOCK_MODE === 'true') {
-      // Check if slug exists in mock data
-      const existing = mockCourses.find(c => c.slug === slug);
-      if (existing) {
-        throw new AppError('Slug already exists', 409);
-      }
+    // Check if slug exists
+    const existing = await prisma.course.findUnique({
+      where: { slug }
+    });
 
-      const newCourse = {
-        id: mockCourseIdCounter++,
+    if (existing) {
+      throw new AppError('Slug already exists', 409);
+    }
+
+    const course = await prisma.course.create({
+      data: {
         title,
         slug,
-        description: description || null,
-        level: level || null,
+        description,
+        level,
         capacity: capacity || 0,
         price: price || 0,
-        currency: currency || 'MMK',
+        currency: 'MMK', // Always MMK
         active: active !== false,
-        created_by: req.user?.id,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-
-      mockCourses.push(newCourse);
-
-      console.log('\n📚 MOCK MODE - Course Created:');
-      console.log(`   Title: ${title}`);
-      console.log(`   Slug: ${slug}`);
-      console.log(`   Level: ${level || 'Not specified'}`);
-      console.log(`   Price: ${price || 0} ${currency || 'MMK'}\n`);
-
-      res.status(201).json({
-        success: true,
-        data: newCourse
-      });
-    } else {
-      // Check if slug exists
-      const existing = await pool.query('SELECT id FROM courses WHERE slug = $1', [slug]);
-      if (existing.rows.length > 0) {
-        throw new AppError('Slug already exists', 409);
+        createdBy: req.user?.id
       }
+    });
 
-      const result = await pool.query(
-        `INSERT INTO courses (title, slug, description, level, capacity, price, currency, active, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING *`,
-        [title, slug, description, level, capacity || 0, price || 0, currency || 'MMK', active !== false, req.user?.id]
-      );
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id)
-         VALUES ($1, 'course.created', 'course', $2)`,
-        [req.user?.id, result.rows[0].id]
-      );
-
-      res.status(201).json({
-        success: true,
-        data: result.rows[0]
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'course.created',
+          resourceType: 'course',
+          resourceId: course.id
+        }
       });
     }
-  } catch (error) {
+
+    // Format response
+    const formattedCourse = {
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      level: course.level,
+      capacity: course.capacity,
+      price: course.price,
+      currency: course.currency,
+      active: course.active,
+      created_by: course.createdBy,
+      created_at: course.createdAt,
+      updated_at: course.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      data: formattedCourse
+    });
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      // Unique constraint violation
+      throw new AppError('Slug already exists', 409);
+    }
     next(error);
   }
 };
@@ -288,123 +196,83 @@ export const updateCourse = async (req: AuthRequest, res: Response, next: NextFu
     const { id } = req.params;
     const { title, slug, description, level, capacity, price, currency, active } = req.body;
 
-    if (process.env.MOCK_MODE === 'true') {
-      const courseIndex = mockCourses.findIndex(c => c.id === parseInt(id));
-      
-      if (courseIndex === -1) {
-        throw new AppError('Course not found', 404);
-      }
-
-      // Check slug uniqueness if changing
-      if (slug && slug !== mockCourses[courseIndex].slug) {
-        const existing = mockCourses.find(c => c.slug === slug && c.id !== parseInt(id));
-        if (existing) {
-          throw new AppError('Slug already exists', 409);
+    // Check slug uniqueness if changing
+    if (slug) {
+      const existing = await prisma.course.findFirst({
+        where: {
+          slug,
+          id: { not: parseInt(id) }
         }
-      }
-
-      const course = mockCourses[courseIndex];
-      
-      if (title !== undefined) course.title = title;
-      if (slug !== undefined) course.slug = slug;
-      if (description !== undefined) course.description = description;
-      if (level !== undefined) course.level = level;
-      if (capacity !== undefined) course.capacity = capacity;
-      if (price !== undefined) course.price = price;
-      if (currency !== undefined) course.currency = currency;
-      if (active !== undefined) course.active = active;
-      course.updated_at = new Date();
-
-      console.log('\n📝 MOCK MODE - Course Updated:');
-      console.log(`   ID: ${id}`);
-      console.log(`   Title: ${course.title}`);
-      console.log(`   Slug: ${course.slug}\n`);
-
-      res.json({
-        success: true,
-        data: course
       });
-    } else {
-      const updates: string[] = [];
-      const params: any[] = [];
-      let paramCount = 0;
 
-      if (title !== undefined) {
-        paramCount++;
-        updates.push(`title = $${paramCount}`);
-        params.push(title);
+      if (existing) {
+        throw new AppError('Slug already exists', 409);
       }
-      if (slug !== undefined) {
-        // Check slug uniqueness if changing
-        const existing = await pool.query('SELECT id FROM courses WHERE slug = $1 AND id != $2', [slug, id]);
-        if (existing.rows.length > 0) {
-          throw new AppError('Slug already exists', 409);
+    }
+
+    // Build update data
+    const updateData: any = {};
+
+    if (title !== undefined) updateData.title = title;
+    if (slug !== undefined) updateData.slug = slug;
+    if (description !== undefined) updateData.description = description;
+    if (level !== undefined) updateData.level = level;
+    if (capacity !== undefined) updateData.capacity = capacity;
+    if (price !== undefined) updateData.price = price;
+    // Currency is always MMK - ignore any currency updates
+    if (active !== undefined) updateData.active = active;
+
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError('No fields to update', 400);
+    }
+
+    const course = await prisma.course.update({
+      where: { id: parseInt(id) },
+      data: updateData
+    });
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'course.updated',
+          resourceType: 'course',
+          resourceId: parseInt(id),
+          meta: { changes: req.body }
         }
-        paramCount++;
-        updates.push(`slug = $${paramCount}`);
-        params.push(slug);
-      }
-      if (description !== undefined) {
-        paramCount++;
-        updates.push(`description = $${paramCount}`);
-        params.push(description);
-      }
-      if (level !== undefined) {
-        paramCount++;
-        updates.push(`level = $${paramCount}`);
-        params.push(level);
-      }
-      if (capacity !== undefined) {
-        paramCount++;
-        updates.push(`capacity = $${paramCount}`);
-        params.push(capacity);
-      }
-      if (price !== undefined) {
-        paramCount++;
-        updates.push(`price = $${paramCount}`);
-        params.push(price);
-      }
-      if (currency !== undefined) {
-        paramCount++;
-        updates.push(`currency = $${paramCount}`);
-        params.push(currency);
-      }
-      if (active !== undefined) {
-        paramCount++;
-        updates.push(`active = $${paramCount}`);
-        params.push(active);
-      }
-
-      if (updates.length === 0) {
-        throw new AppError('No fields to update', 400);
-      }
-
-      paramCount++;
-      params.push(id);
-
-      const result = await pool.query(
-        `UPDATE courses SET ${updates.join(', ')}, updated_at = now() WHERE id = $${paramCount}
-         RETURNING *`,
-        params
-      );
-
-      if (result.rows.length === 0) {
-        throw new AppError('Course not found', 404);
-      }
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id, meta)
-         VALUES ($1, 'course.updated', 'course', $2, $3)`,
-        [req.user?.id, id, JSON.stringify({ changes: req.body })]
-      );
-
-      res.json({
-        success: true,
-        data: result.rows[0]
       });
     }
-  } catch (error) {
+
+    // Format response
+    const formattedCourse = {
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      level: course.level,
+      capacity: course.capacity,
+      price: course.price,
+      currency: course.currency,
+      active: course.active,
+      created_by: course.createdBy,
+      created_at: course.createdAt,
+      updated_at: course.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: formattedCourse
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      throw new AppError('Course not found', 404);
+    }
+    if (error.code === 'P2002') {
+      // Unique constraint violation
+      throw new AppError('Slug already exists', 409);
+    }
     next(error);
   }
 };
@@ -414,28 +282,32 @@ export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFu
     const { id } = req.params;
 
     // Soft delete (set active to false)
-    const result = await pool.query(
-      `UPDATE courses SET active = false, updated_at = now() WHERE id = $1
-       RETURNING id`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      throw new AppError('Course not found', 404);
-    }
+    const course = await prisma.course.update({
+      where: { id: parseInt(id) },
+      data: { active: false }
+    });
 
     // Log activity
-    await pool.query(
-      `INSERT INTO activity_logs (user_id, action, resource_type, resource_id)
-       VALUES ($1, 'course.deleted', 'course', $2)`,
-      [req.user?.id, id]
-    );
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'course.deleted',
+          resourceType: 'course',
+          resourceId: parseInt(id)
+        }
+      });
+    }
 
     res.json({
       success: true,
       message: 'Course archived successfully'
     });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      throw new AppError('Course not found', 404);
+    }
     next(error);
   }
 };
@@ -444,28 +316,45 @@ export const getCourseSchedules = async (req: AuthRequest, res: Response, next: 
   try {
     const { id } = req.params;
 
-    if (process.env.MOCK_MODE === 'true') {
-      const schedules = mockSchedules.filter(s => s.course_id === parseInt(id));
-      
-      res.json({
-        success: true,
-        data: schedules
-      });
-    } else {
-      const result = await pool.query(
-        `SELECT s.*, u.first_name || ' ' || u.last_name as teacher_name
-         FROM schedules s
-         LEFT JOIN users u ON s.teacher_id = u.id
-         WHERE s.course_id = $1
-         ORDER BY s.start_time ASC`,
-        [id]
-      );
+    const schedules = await prisma.schedule.findMany({
+      where: {
+        courseId: parseInt(id)
+      },
+      include: {
+        teacher: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      },
+      orderBy: {
+        startTime: 'asc'
+      }
+    });
 
-      res.json({
-        success: true,
-        data: result.rows
-      });
-    }
+    // Format response
+    const formattedSchedules = schedules.map(schedule => ({
+      id: schedule.id,
+      course_id: schedule.courseId,
+      teacher_id: schedule.teacherId,
+      teacher_name: schedule.teacher 
+        ? `${schedule.teacher.firstName} ${schedule.teacher.lastName}` 
+        : null,
+      start_time: schedule.startTime,
+      end_time: schedule.endTime,
+      timezone: schedule.timezone,
+      capacity: schedule.capacity,
+      location: schedule.location,
+      status: schedule.status,
+      created_at: schedule.createdAt,
+      updated_at: schedule.updatedAt
+    }));
+
+    res.json({
+      success: true,
+      data: formattedSchedules
+    });
   } catch (error) {
     next(error);
   }
@@ -480,55 +369,114 @@ export const createSchedule = async (req: AuthRequest, res: Response, next: Next
       throw new AppError('Start time and end time are required', 400);
     }
 
-    if (process.env.MOCK_MODE === 'true') {
-      const newSchedule = {
-        id: mockScheduleIdCounter++,
-        course_id: parseInt(id),
-        teacher_id: teacherId || null,
-        start_time: startTime,
-        end_time: endTime,
+    const schedule = await prisma.schedule.create({
+      data: {
+        courseId: parseInt(id),
+        teacherId: teacherId || null,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
         timezone: timezone || 'Asia/Yangon',
         capacity: capacity || null,
         location: location || null,
-        status: status || 'scheduled',
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+        status: status || 'scheduled'
+      }
+    });
 
-      mockSchedules.push(newSchedule);
-
-      console.log('\n📅 MOCK MODE - Schedule Created:');
-      console.log(`   Course ID: ${id}`);
-      console.log(`   Start: ${startTime}`);
-      console.log(`   End: ${endTime}`);
-      console.log(`   Location: ${location || 'Not specified'}\n`);
-
-      res.status(201).json({
-        success: true,
-        data: newSchedule
-      });
-    } else {
-      const result = await pool.query(
-        `INSERT INTO schedules (course_id, teacher_id, start_time, end_time, timezone, capacity, location, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         RETURNING *`,
-        [id, teacherId, startTime, endTime, timezone || 'Asia/Yangon', capacity, location, status || 'scheduled']
-      );
-
-      // Log activity
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, action, resource_type, resource_id)
-         VALUES ($1, 'schedule.created', 'schedule', $2)`,
-        [req.user?.id, result.rows[0].id]
-      );
-
-      res.status(201).json({
-        success: true,
-        data: result.rows[0]
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'schedule.created',
+          resourceType: 'schedule',
+          resourceId: schedule.id
+        }
       });
     }
+
+    // Format response
+    const formattedSchedule = {
+      id: schedule.id,
+      course_id: schedule.courseId,
+      teacher_id: schedule.teacherId,
+      start_time: schedule.startTime,
+      end_time: schedule.endTime,
+      timezone: schedule.timezone,
+      capacity: schedule.capacity,
+      location: schedule.location,
+      status: schedule.status,
+      created_at: schedule.createdAt,
+      updated_at: schedule.updatedAt
+    };
+
+    res.status(201).json({
+      success: true,
+      data: formattedSchedule
+    });
   } catch (error) {
     next(error);
   }
 };
 
+// GET /courses/with-lectures - Get courses with lecture counts and teacher info
+export const getCoursesWithLectures = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const courses = await prisma.course.findMany({
+      where: {
+        active: true
+      },
+      include: {
+        lectures: {
+          select: {
+            id: true
+          }
+        },
+        schedules: {
+          where: {
+            teacherId: { not: null }
+          },
+          include: {
+            teacher: {
+              select: {
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Format response
+    const formattedCourses = courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      level: course.level,
+      capacity: course.capacity,
+      price: course.price,
+      currency: course.currency,
+      active: course.active,
+      created_at: course.createdAt,
+      lecture_count: course.lectures.length,
+      teacher_name: course.schedules[0]?.teacher
+        ? `${course.schedules[0].teacher.firstName} ${course.schedules[0].teacher.lastName}`
+        : null
+    }));
+
+    res.json({
+      success: true,
+      data: formattedCourses
+    });
+  } catch (error) {
+    next(error);
+  }
+};

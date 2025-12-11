@@ -33,6 +33,17 @@ export function useCourses(params?: { page?: number; per_page?: number; q?: stri
   })
 }
 
+export function useCourse(id: number) {
+  return useQuery({
+    queryKey: ['course', id],
+    queryFn: async () => {
+      const response = await api.get(`/courses/${id}`)
+      return response.data
+    },
+    enabled: !!id
+  })
+}
+
 export function useCreateCourse() {
   const queryClient = useQueryClient()
 
@@ -52,6 +63,7 @@ export function useCreateCourse() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['courses', 'with-lectures'] })
       toast.success('Course created successfully')
     },
     onError: (error: any) => {
@@ -92,6 +104,21 @@ export function useDeleteCourse() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to delete course')
+    }
+  })
+}
+
+export interface CourseWithLectures extends Course {
+  lecture_count: number
+  teacher_name?: string | null
+}
+
+export function useCoursesWithLectures() {
+  return useQuery({
+    queryKey: ['courses', 'with-lectures'],
+    queryFn: async () => {
+      const response = await api.get('/courses/with-lectures')
+      return response.data
     }
   })
 }

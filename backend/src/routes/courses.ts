@@ -7,7 +7,8 @@ import {
   updateCourse,
   deleteCourse,
   getCourseSchedules,
-  createSchedule
+  createSchedule,
+  getCoursesWithLectures
 } from '../controllers/coursesController';
 
 export const coursesRouter = Router();
@@ -15,6 +16,7 @@ export const coursesRouter = Router();
 coursesRouter.use(authenticate);
 
 coursesRouter.get('/', requirePermission('courses', 'view'), getCourses);
+coursesRouter.get('/with-lectures', requirePermission('courses', 'view'), getCoursesWithLectures);
 coursesRouter.get('/:id', requirePermission('courses', 'view'), getCourse);
 coursesRouter.post('/', requirePermission('courses', 'create'), createCourse);
 coursesRouter.put('/:id', requirePermission('courses', 'update'), updateCourse);

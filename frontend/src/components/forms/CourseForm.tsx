@@ -118,12 +118,10 @@ export default function CourseForm({ onSubmit, onCancel, isLoading, initialData 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-          <select {...register('currency')} className="input w-full">
-            <option value="MMK">MMK</option>
-            <option value="USD">USD</option>
-            <option value="KRW">KRW</option>
-          </select>
-          {errors.currency && <p className="text-red-500 text-xs mt-1">{errors.currency.message}</p>}
+          <div className="input w-full bg-gray-50">
+            MMK
+          </div>
+          <input type="hidden" {...register('currency')} value="MMK" />
         </div>
       </div>
 

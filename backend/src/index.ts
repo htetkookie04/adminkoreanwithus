@@ -13,6 +13,9 @@ import { reportsRouter } from './routes/reports';
 import { settingsRouter } from './routes/settings';
 import { timetableRouter } from './routes/timetable';
 import { galleryRouter } from './routes/gallery';
+import { lecturesRouter } from './routes/lectures';
+import { analyticsRouter } from './routes/analytics';
+import { rolesRouter } from './routes/roles';
 import path from 'path';
 
 dotenv.config();
@@ -21,7 +24,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true
@@ -30,8 +36,35 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Serve static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static files for uploads - MUST be before API routes
+// This allows direct access to uploaded files without authentication
+app.use('/uploads', (req, res, next) => {
+  // Set CORS headers for static files
+  const origin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  
+  // Set proper content-type headers
+  if (req.path.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i)) {
+    res.type('video/mp4');
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+  } else if (req.path.match(/\.pdf$/i)) {
+    res.type('application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(req.path)}"`);
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+  }
+  
+  next();
+}, express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, filePath) => {
+    // Additional headers for video streaming
+    if (filePath.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i)) {
+      res.setHeader('Accept-Ranges', 'bytes');
+    }
+  }
+}));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -48,6 +81,9 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/timetable', timetableRouter);
 app.use('/api/gallery', galleryRouter);
+app.use('/api/lectures', lecturesRouter);
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/roles', rolesRouter);
 
 // Error handling (must be last)
 app.use(errorHandler);

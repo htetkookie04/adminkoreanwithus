@@ -1,12 +1,19 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useEnrollments, useCreateEnrollment, useApproveEnrollment, Enrollment } from '../hooks/useEnrollments'
 import Modal from '../components/Modal'
 import EnrollmentForm, { EnrollmentFormData } from '../components/forms/EnrollmentForm'
+import { useAuthStore } from '../store/authStore'
 
 export default function Enrollments() {
+  const { user } = useAuthStore()
   const [statusFilter, setStatusFilter] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Redirect teacher role to lectures (they don't have access to enrollments)
+  if (user?.roleName === 'teacher') {
+    return <Navigate to="/lectures" replace />
+  }
 
   const { data, isLoading } = useEnrollments({ status: statusFilter || undefined, per_page: 100 })
   const createEnrollmentMutation = useCreateEnrollment()

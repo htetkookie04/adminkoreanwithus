@@ -1,0 +1,461 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ROLES & PERMISSIONS
+// ============================================
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  users            User[]
+  rolePermissions  RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  resource    String
+  action      String
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================
+// USERS
+// ============================================
+
+model User {
+  id          Int       @id @default(autoincrement())
+  email       String   @unique
+  passwordHash String?  @map("password_hash")
+  firstName   String?  @map("first_name")
+  lastName    String?  @map("last_name")
+  phone       String?
+  roleId      Int      @default(4) @map("role_id")
+  status      String   @default("active")
+  lastLoginAt DateTime? @map("last_login_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  role              Role          @relation(fields: [roleId], references: [id])
+  coursesCreated    Course[]      @relation("CourseCreator")
+  schedules         Schedule[]
+  enrollments       Enrollment[]
+  lecturesUploaded  Lecture[]
+  inquiriesAssigned Inquiry[]     @relation("InquiryAssignee")
+  inquiryReplies    InquiryReply[]
+  feedback          Feedback[]
+  mediaUploaded     Media[]
+  activityLogs      ActivityLog[]
+  aiReports         AiReport[]
+  settingsUpdated   Setting[]
+  waitlistEntries   Waitlist[]
+
+  @@index([email], map: "users_email_idx")
+  @@index([roleId], map: "users_role_idx")
+  @@index([status], map: "users_status_idx")
+  @@map("users")
+}
+
+// ============================================
+// COURSES
+// ============================================
+
+model Course {
+  id          Int       @id @default(autoincrement())
+  title       String
+  slug        String    @unique
+  description String?
+  level       String?
+  capacity    Int       @default(0)
+  price       Decimal   @default(0) @db.Decimal(10, 2)
+  currency    String    @default("MMK")
+  active      Boolean   @default(true)
+  createdBy   Int?      @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  creator       User?         @relation("CourseCreator", fields: [createdBy], references: [id])
+  schedules     Schedule[]
+  enrollments   Enrollment[]
+  lectures      Lecture[]
+  feedback      Feedback[]
+  courseMedia   CourseMedia[]
+  waitlist      Waitlist[]
+
+  @@index([slug], map: "courses_slug_idx")
+  @@index([active], map: "courses_active_idx")
+  @@index([level], map: "courses_level_idx")
+  @@map("courses")
+}
+
+// ============================================
+// SCHEDULES (Batches / Class Instances)
+// ============================================
+
+model Schedule {
+  id        Int       @id @default(autoincrement())
+  courseId  Int      @map("course_id")
+  teacherId Int?     @map("teacher_id")
+  startTime DateTime? @map("start_time") @db.Timestamptz
+  endTime   DateTime? @map("end_time") @db.Timestamptz
+  timezone  String   @default("Asia/Singapore")
+  capacity  Int?
+  location  String?
+  status    String   @default("scheduled")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher     User?        @relation(fields: [teacherId], references: [id])
+  enrollments Enrollment[]
+  feedback    Feedback[]
+  waitlist    Waitlist[]
+
+  @@index([courseId], map: "schedules_course_idx")
+  @@index([teacherId], map: "schedules_teacher_idx")
+  @@index([startTime], map: "schedules_start_time_idx")
+  @@index([status], map: "schedules_status_idx")
+  @@map("schedules")
+}
+
+// ============================================
+// ENROLLMENTS
+// ============================================
+
+model Enrollment {
+  id           Int       @id @default(autoincrement())
+  userId       Int?      @map("user_id")
+  courseId     Int?      @map("course_id")
+  scheduleId   Int?      @map("schedule_id")
+  status       String    @default("pending")
+  enrolledAt   DateTime  @default(now()) @map("enrolled_at")
+  notes        String?
+  source       String?
+  paymentStatus String   @default("unpaid") @map("payment_status")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user     User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  course   Course?    @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  schedule Schedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  payments Payment[]
+
+  @@unique([userId, scheduleId])
+  @@index([courseId], map: "enrollments_course_idx")
+  @@index([userId], map: "enrollments_user_idx")
+  @@index([scheduleId], map: "enrollments_schedule_idx")
+  @@index([status], map: "enrollments_status_idx")
+  @@index([paymentStatus], map: "enrollments_payment_status_idx")
+  @@index([enrolledAt], map: "enrollments_enrolled_at_idx")
+  @@map("enrollments")
+}
+
+// ============================================
+// PAYMENTS
+// ============================================
+
+model Payment {
+  id          Int       @id @default(autoincrement())
+  enrollmentId Int?     @map("enrollment_id")
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("MMK")
+  method      String?
+  providerRef String?   @map("provider_ref")
+  status      String    @default("pending")
+  paidAt      DateTime? @map("paid_at") @db.Timestamptz
+  refundedAt  DateTime? @map("refunded_at") @db.Timestamptz
+  metadata    Json?     @db.JsonB
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  enrollment Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+
+  @@index([enrollmentId], map: "payments_enrollment_idx")
+  @@index([status], map: "payments_status_idx")
+  @@index([providerRef], map: "payments_provider_ref_idx")
+  @@index([paidAt], map: "payments_paid_at_idx")
+  @@map("payments")
+}
+
+// ============================================
+// INQUIRIES / CONTACT MESSAGES
+// ============================================
+
+model Inquiry {
+  id         Int       @id @default(autoincrement())
+  name       String?
+  email      String?
+  phone      String?
+  subject    String?
+  message    String?
+  status     String    @default("new")
+  assignedTo Int?      @map("assigned_to")
+  priority   String    @default("normal")
+  source     String?
+  metadata   Json?     @db.JsonB
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  assignee User?        @relation("InquiryAssignee", fields: [assignedTo], references: [id])
+  replies  InquiryReply[]
+
+  @@index([status], map: "inquiries_status_idx")
+  @@index([assignedTo], map: "inquiries_assigned_to_idx")
+  @@index([email], map: "inquiries_email_idx")
+  @@index([createdAt], map: "inquiries_created_at_idx")
+  @@map("inquiries")
+}
+
+model InquiryReply {
+  id         Int       @id @default(autoincrement())
+  inquiryId  Int       @map("inquiry_id")
+  userId     Int?      @map("user_id")
+  message    String
+  isInternal Boolean   @default(false) @map("is_internal")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  inquiry Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([inquiryId], map: "inquiry_replies_inquiry_idx")
+  @@map("inquiry_replies")
+}
+
+// ============================================
+// FEEDBACK / REVIEWS
+// ============================================
+
+model Feedback {
+  id         Int       @id @default(autoincrement())
+  userId     Int?      @map("user_id")
+  courseId   Int?      @map("course_id")
+  scheduleId Int?      @map("schedule_id")
+  rating     Int?
+  comment    String?
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  user     User?     @relation(fields: [userId], references: [id])
+  course   Course?   @relation(fields: [courseId], references: [id])
+  schedule Schedule? @relation(fields: [scheduleId], references: [id])
+
+  @@index([userId], map: "feedback_user_idx")
+  @@index([courseId], map: "feedback_course_idx")
+  @@index([rating], map: "feedback_rating_idx")
+  @@map("feedback")
+}
+
+// ============================================
+// MEDIA / RESOURCES
+// ============================================
+
+model Media {
+  id         Int       @id @default(autoincrement())
+  filename   String
+  url        String
+  mimeType   String?   @map("mime_type")
+  sizeBytes  Int?      @map("size_bytes")
+  uploadedBy Int?      @map("uploaded_by")
+  folder     String?
+  metadata   Json?     @db.JsonB
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  uploader    User?         @relation(fields: [uploadedBy], references: [id])
+  courseMedia CourseMedia[]
+
+  @@index([uploadedBy], map: "media_uploaded_by_idx")
+  @@index([folder], map: "media_folder_idx")
+  @@map("media")
+}
+
+model CourseMedia {
+  courseId Int @map("course_id")
+  mediaId  Int @map("media_id")
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  media  Media  @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, mediaId])
+  @@map("course_media")
+}
+
+// ============================================
+// ACTIVITY LOGS
+// ============================================
+
+model ActivityLog {
+  id          BigInt   @id @default(autoincrement())
+  userId      Int?     @map("user_id")
+  action      String
+  resourceType String? @map("resource_type")
+  resourceId  Int?     @map("resource_id")
+  meta        Json?    @db.JsonB
+  ipAddress   String?  @map("ip_address") @db.Inet
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId], map: "activity_logs_user_idx")
+  @@index([resourceType, resourceId], map: "activity_logs_resource_idx")
+  @@index([action], map: "activity_logs_action_idx")
+  @@index([createdAt], map: "activity_logs_created_at_idx")
+  @@map("activity_logs")
+}
+
+// ============================================
+// AI REPORTS / INSIGHTS
+// ============================================
+
+model AiReport {
+  id          Int       @id @default(autoincrement())
+  name        String?
+  reportType  String    @map("report_type")
+  inputMeta   Json?     @map("input_meta") @db.JsonB
+  resultText  String?   @map("result_text") @db.Text
+  resultData  Json?     @map("result_data") @db.JsonB
+  model       String?
+  status      String    @default("completed")
+  generatedAt DateTime  @default(now()) @map("generated_at")
+  createdBy   Int?      @map("created_by")
+
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@index([reportType], map: "ai_reports_type_idx")
+  @@index([generatedAt], map: "ai_reports_generated_at_idx")
+  @@map("ai_reports")
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+
+model Setting {
+  key         String   @id
+  value       Json     @db.JsonB
+  description String?
+  updatedBy   Int?     @map("updated_by")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updater User? @relation(fields: [updatedBy], references: [id])
+
+  @@map("settings")
+}
+
+// ============================================
+// WAITLIST
+// ============================================
+
+model Waitlist {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  courseId   Int       @map("course_id")
+  scheduleId Int?      @map("schedule_id")
+  position   Int?
+  notifiedAt DateTime? @map("notified_at") @db.Timestamptz
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  schedule Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  @@index([courseId], map: "waitlist_course_idx")
+  @@index([scheduleId], map: "waitlist_schedule_idx")
+  @@map("waitlist")
+}
+
+// ============================================
+// LECTURES
+// ============================================
+
+model Lecture {
+  id             Int       @id @default(autoincrement())
+  courseId       Int       @map("course_id")
+  title          String
+  description    String?
+  videoUrl       String?   @map("video_url")
+  pdfUrl         String?   @map("pdf_url")
+  uploadedBy     Int       @map("uploaded_by")
+  roleOfUploader String    @map("role_of_uploader")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploader   User   @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([courseId], map: "lectures_course_idx")
+  @@index([uploadedBy], map: "lectures_uploaded_by_idx")
+  @@index([createdAt], map: "lectures_created_at_idx")
+  @@map("lectures")
+}
+
+// ============================================
+// TIMETABLE
+// ============================================
+
+model Timetable {
+  id         Int       @id @default(autoincrement())
+  courseName String    @map("course_name")
+  level      String
+  dayOfWeek  String    @map("day_of_week")
+  startTime  DateTime  @map("start_time") @db.Time
+  endTime    DateTime  @map("end_time") @db.Time
+  teacherName String   @map("teacher_name")
+  status     String    @default("active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([dayOfWeek], map: "timetable_day_of_week_idx")
+  @@index([status], map: "timetable_status_idx")
+  @@index([startTime], map: "timetable_start_time_idx")
+  @@map("timetable")
+}
+
+// ============================================
+// GALLERY
+// ============================================
+
+model Gallery {
+  id        Int       @id @default(autoincrement())
+  imageUrl  String    @map("image_url")
+  caption   String?
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@index([sortOrder], map: "gallery_sort_order_idx")
+  @@index([createdAt], map: "gallery_created_at_idx")
+  @@map("gallery")
+}

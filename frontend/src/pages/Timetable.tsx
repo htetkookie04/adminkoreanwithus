@@ -2,12 +2,16 @@ import { useState } from 'react'
 import { useTimetable, useCreateTimetableEntry, useUpdateTimetableEntry, useDeleteTimetableEntry, TimetableEntry } from '../hooks/useTimetable'
 import Modal from '../components/Modal'
 import TimetableForm, { TimetableFormData } from '../components/forms/TimetableForm'
+import { useAuthStore } from '../store/authStore'
 
 export default function Timetable() {
+  const { user } = useAuthStore()
   const [statusFilter, setStatusFilter] = useState('')
   const [dayFilter, setDayFilter] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<TimetableEntry | null>(null)
+
+  const isTeacher = user?.roleName === 'teacher'
 
   const { data, isLoading } = useTimetable({
     status: statusFilter || undefined,
@@ -77,9 +81,11 @@ export default function Timetable() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Timetable Management</h1>
-        <button className="btn btn-primary" onClick={handleAdd}>
-          + Add Timetable Entry
-        </button>
+        {!isTeacher && (
+          <button className="btn btn-primary" onClick={handleAdd}>
+            + Add Timetable Entry
+          </button>
+        )}
       </div>
 
       <Modal
@@ -178,21 +184,23 @@ export default function Timetable() {
                     </span>
                   </td>
                   <td>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(entry)}
-                        className="text-sm text-primary-600 hover:text-primary-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        disabled={deleteMutation.isPending}
-                        className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    {!isTeacher && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(entry)}
+                          className="text-sm text-primary-600 hover:text-primary-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          disabled={deleteMutation.isPending}
+                          className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

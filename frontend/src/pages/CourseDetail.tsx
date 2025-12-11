@@ -5,8 +5,10 @@ import CourseForm, { CourseFormData } from '../components/forms/CourseForm'
 import ScheduleForm, { ScheduleFormData } from '../components/forms/ScheduleForm'
 import Modal from '../components/Modal'
 import { useSchedules, useCreateSchedule } from '../hooks/useSchedules'
+import { useAuthStore } from '../store/authStore'
 
 export default function CourseDetail() {
+  const { user } = useAuthStore()
   const { id } = useParams()
   const courseId = id ? parseInt(id) : 0
   const [course, setCourse] = useState<any>(null)
@@ -14,6 +16,9 @@ export default function CourseDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+
+  const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
+  const isTeacher = user?.roleName === 'teacher'
 
   const { data: schedulesData, isLoading: schedulesLoading } = useSchedules(courseId)
   const createScheduleMutation = useCreateSchedule()
@@ -81,12 +86,14 @@ export default function CourseDetail() {
         </Link>
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">{course.title}</h1>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setIsEditModalOpen(true)}
-          >
-            Edit Course
-          </button>
+          {!isTeacher && (
+            <button 
+              className="btn btn-primary"
+              onClick={() => setIsEditModalOpen(true)}
+            >
+              Edit Course
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,7 +134,7 @@ export default function CourseDetail() {
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Price</dt>
-              <dd className="mt-1 text-sm text-gray-900">${course.price} {course.currency}</dd>
+              <dd className="mt-1 text-sm text-gray-900">{course.price.toLocaleString()} MMK</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-gray-500">Status</dt>
@@ -153,12 +160,14 @@ export default function CourseDetail() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Schedules</h2>
-            <button 
-              className="btn btn-primary text-sm"
-              onClick={() => setIsScheduleModalOpen(true)}
-            >
-              + Add Schedule
-            </button>
+            {!isTeacher && (
+              <button 
+                className="btn btn-primary text-sm"
+                onClick={() => setIsScheduleModalOpen(true)}
+              >
+                + Add Schedule
+              </button>
+            )}
           </div>
 
           <Modal

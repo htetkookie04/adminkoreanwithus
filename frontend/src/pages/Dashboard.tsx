@@ -1,55 +1,18 @@
-import { useEffect, useState } from 'react'
-import { api } from '../lib/api'
-import { Link } from 'react-router-dom'
-
-interface DashboardStats {
-  totalUsers: number
-  activeStudents: number
-  newRegistrations: number
-  totalEnrollments: number
-  pendingEnrollments: number
-  pendingInquiries: number
-}
+import { Link, Navigate } from 'react-router-dom'
+import { useDashboardAnalytics } from '../hooks/useAnalytics'
+import { useAuthStore } from '../store/authStore'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuthStore()
+  const { data, isLoading } = useDashboardAnalytics()
+  const analytics = data?.data
 
-  useEffect(() => {
-    fetchStats()
-  }, [])
-
-  const fetchStats = async () => {
-    try {
-      // Fetch various stats
-      const [users, enrollments, inquiries] = await Promise.all([
-        api.get('/users?per_page=1'),
-        api.get('/enrollments?per_page=1'),
-        api.get('/inquiries?status=new&per_page=1')
-      ])
-
-      // Calculate stats (simplified - in real app, use dedicated stats endpoint)
-      const totalUsers = users.data.pagination?.total || 0
-      const totalEnrollments = enrollments.data.pagination?.total || 0
-      const pendingEnrollments = enrollments.data.data?.filter((e: any) => e.status === 'pending').length || 0
-      const pendingInquiries = inquiries.data.pagination?.total || 0
-
-      setStats({
-        totalUsers,
-        activeStudents: totalUsers, // Simplified
-        newRegistrations: 0, // Would need date filter
-        totalEnrollments,
-        pendingEnrollments,
-        pendingInquiries
-      })
-    } catch (error) {
-      console.error('Failed to fetch stats:', error)
-    } finally {
-      setLoading(false)
-    }
+  // Redirect viewer and teacher roles to lectures (they don't have access to dashboard)
+  if (user?.roleName === 'viewer' || user?.roleName === 'teacher') {
+    return <Navigate to="/lectures" replace />
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="text-center py-12">Loading dashboard...</div>
   }
 
@@ -58,12 +21,13 @@ export default function Dashboard() {
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalUsers || 0}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.userCount || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Active: {analytics?.activeUsers || 0}</p>
             </div>
             <div className="text-4xl">👥</div>
           </div>
@@ -72,8 +36,19 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
+              <p className="text-sm font-medium text-gray-600">Total Courses</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.courseCount || 0}</p>
+            </div>
+            <div className="text-4xl">📚</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
               <p className="text-sm font-medium text-gray-600">Total Enrollments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalEnrollments || 0}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.enrollmentCount || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Active: {analytics?.activeEnrollments || 0}</p>
             </div>
             <div className="text-4xl">✅</div>
           </div>
@@ -83,11 +58,11 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Pending Enrollments</p>
-              <p className="text-3xl font-bold text-red-600 mt-2">{stats?.pendingEnrollments || 0}</p>
+              <p className="text-3xl font-bold text-red-600 mt-2">{analytics?.pendingEnrollments || 0}</p>
             </div>
             <div className="text-4xl">⏳</div>
           </div>
-          {stats && stats.pendingEnrollments > 0 && (
+          {analytics && analytics.pendingEnrollments > 0 && (
             <Link to="/enrollments?status=pending" className="text-sm text-primary-600 hover:underline mt-2 block">
               Review pending →
             </Link>
@@ -97,16 +72,32 @@ export default function Dashboard() {
         <div className="card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pending Inquiries</p>
-              <p className="text-3xl font-bold text-orange-600 mt-2">{stats?.pendingInquiries || 0}</p>
+              <p className="text-sm font-medium text-gray-600">Lectures</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.lectureCount || 0}</p>
             </div>
-            <div className="text-4xl">💬</div>
+            <div className="text-4xl">🎥</div>
           </div>
-          {stats && stats.pendingInquiries > 0 && (
-            <Link to="/inquiries?status=new" className="text-sm text-primary-600 hover:underline mt-2 block">
-              View inquiries →
-            </Link>
-          )}
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Timetable Entries</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.timetableCount || 0}</p>
+            </div>
+            <div className="text-4xl">📅</div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Recent Enrollments</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{analytics?.recentEnrollments || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Last 7 days</p>
+            </div>
+            <div className="text-4xl">📈</div>
+          </div>
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useEffect } from 'react'
+import { useRoles } from '../../hooks/useRoles'
 
 // Base schema - password can be empty string or min 6 chars
 const baseUserSchema = z.object({
@@ -50,15 +51,15 @@ interface UserFormProps {
   initialData?: Partial<UserFormData>
 }
 
-const roles = [
-  { id: 2, name: 'Admin' },
-  { id: 4, name: 'Teacher' },
-  { id: 8, name: 'User' }
-]
-
 export default function UserForm({ onSubmit, onCancel, isLoading, initialData }: UserFormProps) {
   const isEditMode = !!initialData
   const userSchema = createUserSchema(isEditMode)
+  const { data: rolesData, isLoading: rolesLoading } = useRoles()
+  const roles = rolesData?.data || []
+  
+  // Find user role ID for default
+  const userRole = roles.find(r => r.name === 'user')
+  const defaultRoleId = userRole?.id || 8
 
   const {
     register,
@@ -73,7 +74,7 @@ export default function UserForm({ onSubmit, onCancel, isLoading, initialData }:
       firstName: initialData?.firstName || '',
       lastName: initialData?.lastName || '',
       phone: initialData?.phone || '',
-      roleId: initialData?.roleId || 8, // Default to User role
+      roleId: initialData?.roleId || defaultRoleId,
       status: initialData?.status || 'active'
     }
   })
@@ -81,8 +82,21 @@ export default function UserForm({ onSubmit, onCancel, isLoading, initialData }:
   useEffect(() => {
     if (initialData) {
       reset(initialData)
+    } else if (!rolesLoading && roles.length > 0 && !initialData) {
+      // Update default roleId when roles are loaded
+      const userRole = roles.find(r => r.name === 'user')
+      const defaultRoleId = userRole?.id || 8
+      reset({
+        email: '',
+        password: '',
+        firstName: '',
+        lastName: '',
+        phone: '',
+        roleId: defaultRoleId,
+        status: 'active'
+      })
     }
-  }, [initialData, reset])
+  }, [initialData, reset, rolesLoading, roles])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -155,12 +169,20 @@ export default function UserForm({ onSubmit, onCancel, isLoading, initialData }:
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Role <span className="text-red-500">*</span>
         </label>
-        <select {...register('roleId', { valueAsNumber: true })} className="input w-full">
-          {roles.map((role) => (
-            <option key={role.id} value={role.id}>
-              {role.name}
-            </option>
-          ))}
+        <select 
+          {...register('roleId', { valueAsNumber: true })} 
+          className="input w-full"
+          disabled={rolesLoading}
+        >
+          {rolesLoading ? (
+            <option>Loading roles...</option>
+          ) : (
+            roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name.charAt(0).toUpperCase() + role.name.slice(1).replace('_', ' ')}
+              </option>
+            ))
+          )}
         </select>
         {errors.roleId && <p className="text-red-500 text-xs mt-1">{errors.roleId.message}</p>}
       </div>

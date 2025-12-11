@@ -101,15 +101,10 @@ export default function Settings() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Default Currency
               </label>
-              <select
-                className="input"
-                value={settings['payment.currency'] || 'MMK'}
-                onChange={(e) => updateSetting('payment.currency', e.target.value)}
-              >
-                <option value="MMK">MMK</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
+              <div className="input bg-gray-50">
+                MMK
+              </div>
+              <input type="hidden" value="MMK" />
             </div>
           </div>
         </div>

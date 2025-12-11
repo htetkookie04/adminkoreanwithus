@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useCourses, useCreateCourse } from '../hooks/useCourses'
+import { useCoursesWithLectures, useCreateCourse, CourseWithLectures } from '../hooks/useCourses'
 import Modal from '../components/Modal'
 import CourseForm, { CourseFormData } from '../components/forms/CourseForm'
 
 export default function Courses() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const { data, isLoading } = useCourses({ per_page: 100 })
+  const { data, isLoading } = useCoursesWithLectures()
   const createCourseMutation = useCreateCourse()
 
   const courses = data?.data || []
@@ -58,9 +58,13 @@ export default function Courses() {
                 )}
               </div>
               <p className="text-sm text-gray-600 mb-4">{course.level}</p>
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">Capacity: {course.capacity}</span>
-                <span className="font-medium text-gray-900">${course.price}</span>
+                <span className="font-medium text-gray-900">{course.price.toLocaleString()} MMK</span>
+              </div>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">Lectures: </span>
+                <span>{(course as CourseWithLectures).lecture_count || 0}</span>
               </div>
             </Link>
           ))}

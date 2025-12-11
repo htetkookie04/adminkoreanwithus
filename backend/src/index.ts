@@ -34,6 +34,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'https://adminkoreanwithus.netlify.app',
+  'https://joyful-torrone-458731.netlify.app',
   process.env.CORS_ORIGIN
 ].filter(Boolean);
 

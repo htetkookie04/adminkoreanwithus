@@ -86,6 +86,16 @@ app.use('/uploads', (req, res, next) => {
   }
 }));
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Korean With Us Admin API',
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -115,7 +115,7 @@ export const getInquiry = async (req: AuthRequest, res: Response, next: NextFunc
 
 export const createInquiry = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { name, email, phone, subject, message, source } = req.body;
+    const { name, email, phone, subject, message, source } = req.body as any;
 
     if (!name || !email || !message) {
       throw new AppError('Name, email, and message are required', 400);

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, RequestHandler } from 'express';
 import { authenticate, requirePermission } from '../middleware/auth';
 import {
   getInquiries,
@@ -11,7 +11,7 @@ import {
 export const inquiriesRouter = Router();
 
 // Public route for contact form
-inquiriesRouter.post('/', createInquiry);
+inquiriesRouter.post('/', createInquiry as unknown as RequestHandler);
 
 // Protected routes
 inquiriesRouter.use(authenticate);

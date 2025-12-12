@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import {
   getLectures,
@@ -24,14 +24,26 @@ lecturesRouter.get('/course/:courseId', getLecturesByCourse);
 // GET /lectures/:id - Get single lecture
 lecturesRouter.get('/:id', getLecture);
 
+// Multer error handling wrapper
+const handleMulterError = (req: Request, res: Response, next: NextFunction) => {
+  const multerMiddleware = uploadFiles.fields([
+    { name: 'video', maxCount: 1 },
+    { name: 'pdf', maxCount: 1 }
+  ]);
+  
+  multerMiddleware(req, res, (err: any) => {
+    if (err) {
+      return next(err);
+    }
+    next();
+  });
+};
+
 // POST /lectures - Create lecture (admin/teacher only)
 lecturesRouter.post(
   '/',
   requireRole('admin', 'super_admin', 'teacher'),
-  uploadFiles.fields([
-    { name: 'video', maxCount: 1 },
-    { name: 'pdf', maxCount: 1 }
-  ]),
+  handleMulterError,
   createLecture
 );
 

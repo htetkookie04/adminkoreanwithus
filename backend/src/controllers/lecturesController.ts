@@ -37,9 +37,9 @@ const storage = multer.diskStorage({
 });
 
 const videoFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = /mp4|webm|ogg|mov|avi|mkv/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = /video\//.test(file.mimetype);
+  const allowedExtensions = /\.(mp4|webm|ogg|mov|avi|mkv)$/i;
+  const extname = allowedExtensions.test(path.extname(file.originalname));
+  const mimetype = /^video\//.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
@@ -49,8 +49,8 @@ const videoFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFil
 };
 
 const pdfFileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const extname = /pdf/.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = /application\/pdf/.test(file.mimetype);
+  const extname = /\.pdf$/i.test(path.extname(file.originalname));
+  const mimetype = /^application\/pdf/.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
@@ -307,6 +307,14 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     // At least one file (video or PDF) must be provided
     if (!videoFile && !pdfFile) {
       throw new AppError('At least one file (video or PDF) must be provided', 400);
+    }
+
+    // Validate file sizes
+    if (videoFile && videoFile.size > 500 * 1024 * 1024) {
+      throw new AppError('Video file size exceeds the maximum limit of 500MB', 400);
+    }
+    if (pdfFile && pdfFile.size > 50 * 1024 * 1024) {
+      throw new AppError('PDF file size exceeds the maximum limit of 50MB', 400);
     }
 
     const user = req.user!;

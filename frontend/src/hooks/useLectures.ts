@@ -106,7 +106,11 @@ export function useCreateLecture() {
       toast.success('Lecture uploaded successfully')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to upload lecture')
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to upload lecture'
+      toast.error(errorMessage)
     }
   })
 }

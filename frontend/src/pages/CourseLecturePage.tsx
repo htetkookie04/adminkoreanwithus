@@ -148,7 +148,9 @@ export default function CourseLecturePage() {
           initialData={editingLecture ? {
             course_id: courseIdNum,
             title: editingLecture.title,
-            description: editingLecture.description
+            description: editingLecture.description,
+            video_url: editingLecture.video_url || '',
+            pdf_url: editingLecture.pdf_url || ''
           } : {
             course_id: courseIdNum
           }}

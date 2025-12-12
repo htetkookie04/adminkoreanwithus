@@ -11,7 +11,21 @@ import { z } from 'zod';
 export const createLectureSchema = z.object({
   course_id: z.number().int().positive(),
   title: z.string().min(1, 'Title is required').max(255),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
+  video_url: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : val),
+    z.union([
+      z.null(),
+      z.string().url('Invalid video URL format')
+    ]).optional()
+  ),
+  pdf_url: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : val),
+    z.union([
+      z.null(),
+      z.string().url('Invalid PDF URL format')
+    ]).optional()
+  ),
 });
 
 export const updateLectureSchema = z.object({
@@ -304,9 +318,24 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const videoFile = files?.video?.[0];
     const pdfFile = files?.pdf?.[0];
 
-    // At least one file (video or PDF) must be provided
-    if (!videoFile && !pdfFile) {
-      throw new AppError('At least one file (video or PDF) must be provided', 400);
+    // Get URL fields from request body (FormData sends them as strings)
+    const videoUrlFromBody = req.body.video_url?.trim() || null;
+    const pdfUrlFromBody = req.body.pdf_url?.trim() || null;
+
+    // Validate that at least one content source is provided (file or URL)
+    const hasVideoContent = !!(videoFile || videoUrlFromBody);
+    const hasPdfContent = !!(pdfFile || pdfUrlFromBody);
+    
+    if (!hasVideoContent && !hasPdfContent) {
+      throw new AppError('At least one content source (video file, video URL, PDF file, or PDF URL) must be provided', 400);
+    }
+
+    // Validate that user doesn't provide both file and URL for the same type
+    if (videoFile && videoUrlFromBody) {
+      throw new AppError('Cannot provide both video file and video URL. Please choose one.', 400);
+    }
+    if (pdfFile && pdfUrlFromBody) {
+      throw new AppError('Cannot provide both PDF file and PDF URL. Please choose one.', 400);
     }
 
     // Validate file sizes
@@ -320,11 +349,13 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const user = req.user!;
     const roleOfUploader = user.roleName === 'admin' || user.roleName === 'super_admin' ? 'admin' : 'teacher';
 
-    // Validate request body
+    // Validate request body - handle null/undefined from FormData
     const validatedData = createLectureSchema.parse({
-      course_id: parseInt(req.body.course_id),
-      title: req.body.title,
-      description: req.body.description || null
+      course_id: req.body.course_id ? parseInt(req.body.course_id) : undefined,
+      title: req.body.title || '',
+      description: req.body.description || null,
+      video_url: videoUrlFromBody || null,
+      pdf_url: pdfUrlFromBody || null
     });
 
     // Verify course exists
@@ -336,9 +367,9 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       throw new AppError('Course not found', 404);
     }
 
-    // Construct URLs
-    const videoUrl = videoFile ? `/uploads/lectures/${videoFile.filename}` : null;
-    const pdfUrl = pdfFile ? `/uploads/lectures/${pdfFile.filename}` : null;
+    // Construct URLs - prioritize uploaded files over URLs
+    const videoUrl = videoFile ? `/uploads/lectures/${videoFile.filename}` : (validatedData.video_url || null);
+    const pdfUrl = pdfFile ? `/uploads/lectures/${pdfFile.filename}` : (validatedData.pdf_url || null);
 
     const lecture = await prisma.lecture.create({
       data: {

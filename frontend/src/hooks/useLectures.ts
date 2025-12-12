@@ -23,7 +23,9 @@ export interface LectureFormData {
   title: string
   description?: string
   video?: File
+  video_url?: string
   pdf?: File
+  pdf_url?: string
 }
 
 export function useLectures(params?: {
@@ -82,14 +84,24 @@ export function useCreateLecture() {
       if (data.video && data.video instanceof File) {
         formData.append('video', data.video)
       }
+      // Add video URL if provided
+      if (data.video_url && data.video_url.trim() !== '') {
+        formData.append('video_url', data.video_url.trim())
+      }
       // Check if pdf is a File instance before appending
       if (data.pdf && data.pdf instanceof File) {
         formData.append('pdf', data.pdf)
       }
+      // Add PDF URL if provided
+      if (data.pdf_url && data.pdf_url.trim() !== '') {
+        formData.append('pdf_url', data.pdf_url.trim())
+      }
 
-      // Validate that at least one file is provided
-      if (!formData.has('video') && !formData.has('pdf')) {
-        throw new Error('At least one file (video or PDF) must be provided')
+      // Validate that at least one content source is provided
+      const hasVideoContent = formData.has('video') || formData.has('video_url')
+      const hasPdfContent = formData.has('pdf') || formData.has('pdf_url')
+      if (!hasVideoContent && !hasPdfContent) {
+        throw new Error('At least one content source (video file, video URL, PDF file, or PDF URL) must be provided')
       }
 
       const response = await api.post('/lectures', formData, {

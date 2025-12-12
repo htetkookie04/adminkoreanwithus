@@ -14,21 +14,51 @@ const createLectureSchema = z.object({
       (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
+  video_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid video URL format'
+  ),
   pdf: z.any().optional()
     .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
       (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
-    )
+    ),
+  pdf_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid PDF URL format'
+  )
 }).refine(
   (data) => {
     const hasVideo = data.video instanceof File
+    const hasVideoUrl = data.video_url && data.video_url.trim() !== ''
     const hasPdf = data.pdf instanceof File
-    return hasVideo || hasPdf
+    const hasPdfUrl = data.pdf_url && data.pdf_url.trim() !== ''
+    return (hasVideo || hasVideoUrl) || (hasPdf || hasPdfUrl)
   },
   {
-    message: 'At least one file (video or PDF) must be provided',
+    message: 'At least one content source (video file, video URL, PDF file, or PDF URL) must be provided',
     path: ['video'] // This will show the error on the form
+  }
+).refine(
+  (data) => {
+    const hasVideo = data.video instanceof File
+    const hasVideoUrl = data.video_url && data.video_url.trim() !== ''
+    return !(hasVideo && hasVideoUrl)
+  },
+  {
+    message: 'Cannot provide both video file and video URL. Please choose one.',
+    path: ['video']
+  }
+).refine(
+  (data) => {
+    const hasPdf = data.pdf instanceof File
+    const hasPdfUrl = data.pdf_url && data.pdf_url.trim() !== ''
+    return !(hasPdf && hasPdfUrl)
+  },
+  {
+    message: 'Cannot provide both PDF file and PDF URL. Please choose one.',
+    path: ['pdf']
   }
 )
 
@@ -42,12 +72,20 @@ const updateLectureSchema = z.object({
       (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
+  video_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid video URL format'
+  ),
   pdf: z.any().optional()
     .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
       (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
-    )
+    ),
+  pdf_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid PDF URL format'
+  )
 })
 
 export type LectureFormData = z.infer<typeof createLectureSchema> | z.infer<typeof updateLectureSchema>
@@ -80,19 +118,25 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       title: initialData?.title || '',
       description: initialData?.description || '',
       video: undefined,
-      pdf: undefined
+      video_url: initialData?.video_url || '',
+      pdf: undefined,
+      pdf_url: initialData?.pdf_url || ''
     }
   })
 
   const selectedVideo = watch('video')
   const selectedPdf = watch('pdf')
+  const videoUrl = watch('video_url')
+  const pdfUrl = watch('pdf_url')
 
   useEffect(() => {
     if (initialData) {
       reset({
         ...initialData,
         video: undefined,
-        pdf: undefined
+        video_url: initialData.video_url || '',
+        pdf: undefined,
+        pdf_url: initialData.pdf_url || ''
       })
     } else {
       reset({
@@ -100,7 +144,9 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         title: '',
         description: '',
         video: undefined,
-        pdf: undefined
+        video_url: '',
+        pdf: undefined,
+        pdf_url: ''
       })
     }
   }, [initialData, reset])
@@ -214,6 +260,22 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
+          Video URL (Optional)
+        </label>
+        <input
+          type="url"
+          {...register('video_url')}
+          className="input w-full"
+          placeholder="https://youtube.com/watch?v=..."
+        />
+        {errors.video_url && <p className="text-red-500 text-xs mt-1">{errors.video_url.message}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Alternative to file upload: Enter a video URL (e.g., YouTube, Vimeo). Cannot be used together with video file upload.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
           PDF File (Optional)
         </label>
         <Controller
@@ -257,8 +319,24 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         </p>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          PDF URL (Optional)
+        </label>
+        <input
+          type="url"
+          {...register('pdf_url')}
+          className="input w-full"
+          placeholder="https://example.com/document.pdf"
+        />
+        {errors.pdf_url && <p className="text-red-500 text-xs mt-1">{errors.pdf_url.message}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Alternative to file upload: Enter a PDF URL. Cannot be used together with PDF file upload.
+        </p>
+      </div>
+
       {/* Show error if neither video nor PDF is provided (for create mode only) */}
-      {!isEditMode && !selectedVideo && !selectedPdf && errors.video && (
+      {!isEditMode && !selectedVideo && !selectedPdf && !videoUrl && !pdfUrl && errors.video && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           <p className="text-sm">{String(errors.video.message) || 'At least one file (video or PDF) must be provided'}</p>
         </div>

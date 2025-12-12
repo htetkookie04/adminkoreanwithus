@@ -38,10 +38,16 @@ const createLectureSchema = z.object({
     const hasVideoUrl = data.video_url && data.video_url.trim() !== ''
     const hasPdf = data.pdf instanceof File
     const hasPdfUrl = data.pdf_url && data.pdf_url.trim() !== ''
+    const hasResourceLink = data.resource_link_url && data.resource_link_url.trim() !== ''
+    // If resource link is provided, video/PDF is optional
+    if (hasResourceLink) {
+      return true
+    }
+    // Otherwise, require at least one video or PDF content source
     return (hasVideo || hasVideoUrl) || (hasPdf || hasPdfUrl)
   },
   {
-    message: 'At least one content source (video file, video URL, PDF file, or PDF URL) must be provided',
+    message: 'At least one content source (video file, video URL, PDF file, PDF URL, or Resource Link URL) must be provided',
     path: ['video'] // This will show the error on the form
   }
 ).refine(

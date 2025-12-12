@@ -106,8 +106,10 @@ export function useCreateLecture() {
       // Validate that at least one content source is provided
       const hasVideoContent = formData.has('video') || formData.has('video_url')
       const hasPdfContent = formData.has('pdf') || formData.has('pdf_url')
-      if (!hasVideoContent && !hasPdfContent) {
-        throw new Error('At least one content source (video file, video URL, PDF file, or PDF URL) must be provided')
+      const hasResourceLink = formData.has('resource_link_url')
+      // If resource link is provided, video/PDF is optional
+      if (!hasResourceLink && !hasVideoContent && !hasPdfContent) {
+        throw new Error('At least one content source (video file, video URL, PDF file, PDF URL, or Resource Link URL) must be provided')
       }
 
       const response = await api.post('/lectures', formData, {

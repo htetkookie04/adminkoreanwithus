@@ -339,12 +339,14 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const pdfUrlFromBody = req.body.pdf_url?.trim() || null;
     const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
 
-    // Validate that at least one content source is provided (file or URL)
+    // Validate that at least one content source is provided (file, URL, or resource link)
     const hasVideoContent = !!(videoFile || videoUrlFromBody);
     const hasPdfContent = !!(pdfFile || pdfUrlFromBody);
+    const hasResourceLink = !!resourceLinkUrlFromBody;
     
-    if (!hasVideoContent && !hasPdfContent) {
-      throw new AppError('At least one content source (video file, video URL, PDF file, or PDF URL) must be provided', 400);
+    // If resource link is provided, video/PDF is optional
+    if (!hasResourceLink && !hasVideoContent && !hasPdfContent) {
+      throw new AppError('At least one content source (video file, video URL, PDF file, PDF URL, or Resource Link URL) must be provided', 400);
     }
 
     // Validate that user doesn't provide both file and URL for the same type

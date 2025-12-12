@@ -197,13 +197,13 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
                 <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (
-                <p className="text-red-500 text-xs mt-1">{fieldState.error.message}</p>
+                <p className="text-red-500 text-xs mt-1">{String(fieldState.error.message)}</p>
               )}
             </>
           )}
         />
         {errors.video && (
-          <p className="text-red-500 text-xs mt-1">{errors.video.message}</p>
+          <p className="text-red-500 text-xs mt-1">{String(errors.video.message)}</p>
         )}
         <p className="text-xs text-gray-500 mt-1">
           {isEditMode 
@@ -244,12 +244,12 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
                 <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (
-                <p className="text-red-500 text-xs mt-1">{fieldState.error.message}</p>
+                <p className="text-red-500 text-xs mt-1">{String(fieldState.error.message)}</p>
               )}
             </>
           )}
         />
-        {errors.pdf && <p className="text-red-500 text-xs mt-1">{errors.pdf.message}</p>}
+        {errors.pdf && <p className="text-red-500 text-xs mt-1">{String(errors.pdf.message)}</p>}
         <p className="text-xs text-gray-500 mt-1">
           {isEditMode 
             ? 'Leave empty to keep existing PDF. Upload a new file to replace it.'
@@ -260,7 +260,7 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       {/* Show error if neither video nor PDF is provided (for create mode only) */}
       {!isEditMode && !selectedVideo && !selectedPdf && errors.video && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <p className="text-sm">{errors.video.message || 'At least one file (video or PDF) must be provided'}</p>
+          <p className="text-sm">{String(errors.video.message) || 'At least one file (video or PDF) must be provided'}</p>
         </div>
       )}
 

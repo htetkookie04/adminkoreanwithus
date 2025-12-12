@@ -12,20 +12,6 @@ export const createLectureSchema = z.object({
   course_id: z.number().int().positive(),
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().optional().nullable(),
-  video_url: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined ? null : val),
-    z.union([
-      z.null(),
-      z.string().url('Invalid video URL format')
-    ]).optional()
-  ),
-  pdf_url: z.preprocess(
-    (val) => (val === '' || val === null || val === undefined ? null : val),
-    z.union([
-      z.null(),
-      z.string().url('Invalid PDF URL format')
-    ]).optional()
-  ),
   resource_link_url: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? null : val),
     z.union([
@@ -334,27 +320,17 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const videoFile = files?.video?.[0];
     const pdfFile = files?.pdf?.[0];
 
-    // Get URL fields from request body (FormData sends them as strings)
-    const videoUrlFromBody = req.body.video_url?.trim() || null;
-    const pdfUrlFromBody = req.body.pdf_url?.trim() || null;
+    // Get resource link URL from request body
     const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
 
-    // Validate that at least one content source is provided (file, URL, or resource link)
-    const hasVideoContent = !!(videoFile || videoUrlFromBody);
-    const hasPdfContent = !!(pdfFile || pdfUrlFromBody);
+    // Validate that at least one content source is provided (file or resource link)
+    const hasVideoContent = !!videoFile;
+    const hasPdfContent = !!pdfFile;
     const hasResourceLink = !!resourceLinkUrlFromBody;
     
     // If resource link is provided, video/PDF is optional
     if (!hasResourceLink && !hasVideoContent && !hasPdfContent) {
-      throw new AppError('At least one content source (video file, video URL, PDF file, PDF URL, or Resource Link URL) must be provided', 400);
-    }
-
-    // Validate that user doesn't provide both file and URL for the same type
-    if (videoFile && videoUrlFromBody) {
-      throw new AppError('Cannot provide both video file and video URL. Please choose one.', 400);
-    }
-    if (pdfFile && pdfUrlFromBody) {
-      throw new AppError('Cannot provide both PDF file and PDF URL. Please choose one.', 400);
+      throw new AppError('At least one content source (video file, PDF file, or Resource Link URL) must be provided', 400);
     }
 
     // Validate file sizes
@@ -373,8 +349,6 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       course_id: req.body.course_id ? parseInt(req.body.course_id) : undefined,
       title: req.body.title || '',
       description: req.body.description || null,
-      video_url: videoUrlFromBody || null,
-      pdf_url: pdfUrlFromBody || null,
       resource_link_url: resourceLinkUrlFromBody || null
     });
 
@@ -387,9 +361,9 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       throw new AppError('Course not found', 404);
     }
 
-    // Construct URLs - prioritize uploaded files over URLs
-    const videoUrl = videoFile ? `/uploads/lectures/${videoFile.filename}` : (validatedData.video_url || null);
-    const pdfUrl = pdfFile ? `/uploads/lectures/${pdfFile.filename}` : (validatedData.pdf_url || null);
+    // Construct URLs from uploaded files
+    const videoUrl = videoFile ? `/uploads/lectures/${videoFile.filename}` : null;
+    const pdfUrl = pdfFile ? `/uploads/lectures/${pdfFile.filename}` : null;
 
     const lecture = await prisma.lecture.create({
       data: {

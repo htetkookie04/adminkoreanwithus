@@ -14,20 +14,12 @@ const createLectureSchema = z.object({
       (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
-  video_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
-    'Invalid video URL format'
-  ),
   pdf: z.any().optional()
     .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
       (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
     ),
-  pdf_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
-    'Invalid PDF URL format'
-  ),
   resource_link_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid resource link URL format'
@@ -35,40 +27,18 @@ const createLectureSchema = z.object({
 }).refine(
   (data) => {
     const hasVideo = data.video instanceof File
-    const hasVideoUrl = data.video_url && data.video_url.trim() !== ''
     const hasPdf = data.pdf instanceof File
-    const hasPdfUrl = data.pdf_url && data.pdf_url.trim() !== ''
     const hasResourceLink = data.resource_link_url && data.resource_link_url.trim() !== ''
     // If resource link is provided, video/PDF is optional
     if (hasResourceLink) {
       return true
     }
-    // Otherwise, require at least one video or PDF content source
-    return (hasVideo || hasVideoUrl) || (hasPdf || hasPdfUrl)
+    // Otherwise, require at least one video or PDF file
+    return hasVideo || hasPdf
   },
   {
-    message: 'At least one content source (video file, video URL, PDF file, PDF URL, or Resource Link URL) must be provided',
+    message: 'At least one content source (video file, PDF file, or Resource Link URL) must be provided',
     path: ['video'] // This will show the error on the form
-  }
-).refine(
-  (data) => {
-    const hasVideo = data.video instanceof File
-    const hasVideoUrl = data.video_url && data.video_url.trim() !== ''
-    return !(hasVideo && hasVideoUrl)
-  },
-  {
-    message: 'Cannot provide both video file and video URL. Please choose one.',
-    path: ['video']
-  }
-).refine(
-  (data) => {
-    const hasPdf = data.pdf instanceof File
-    const hasPdfUrl = data.pdf_url && data.pdf_url.trim() !== ''
-    return !(hasPdf && hasPdfUrl)
-  },
-  {
-    message: 'Cannot provide both PDF file and PDF URL. Please choose one.',
-    path: ['pdf']
   }
 )
 
@@ -82,20 +52,12 @@ const updateLectureSchema = z.object({
       (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
-  video_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
-    'Invalid video URL format'
-  ),
   pdf: z.any().optional()
     .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
       (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
     ),
-  pdf_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
-    'Invalid PDF URL format'
-  ),
   resource_link_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid resource link URL format'
@@ -132,26 +94,20 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       title: initialData?.title || '',
       description: initialData?.description || '',
       video: undefined,
-      video_url: initialData?.video_url || '',
       pdf: undefined,
-      pdf_url: initialData?.pdf_url || '',
       resource_link_url: initialData?.resource_link_url || ''
     }
   })
 
   const selectedVideo = watch('video')
   const selectedPdf = watch('pdf')
-  const videoUrl = watch('video_url')
-  const pdfUrl = watch('pdf_url')
 
   useEffect(() => {
     if (initialData) {
       reset({
         ...initialData,
         video: undefined,
-        video_url: initialData.video_url || '',
         pdf: undefined,
-        pdf_url: initialData.pdf_url || '',
         resource_link_url: initialData.resource_link_url || ''
       })
     } else {
@@ -160,9 +116,7 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         title: '',
         description: '',
         video: undefined,
-        video_url: '',
         pdf: undefined,
-        pdf_url: '',
         resource_link_url: ''
       })
     }
@@ -277,22 +231,6 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Video URL (Optional)
-        </label>
-        <input
-          type="url"
-          {...register('video_url')}
-          className="input w-full"
-          placeholder="https://youtube.com/watch?v=..."
-        />
-        {errors.video_url && <p className="text-red-500 text-xs mt-1">{errors.video_url.message}</p>}
-        <p className="text-xs text-gray-500 mt-1">
-          Alternative to file upload: Enter a video URL (e.g., YouTube, Vimeo). Cannot be used together with video file upload.
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
           PDF File (Optional)
         </label>
         <Controller
@@ -333,22 +271,6 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
           {isEditMode 
             ? 'Leave empty to keep existing PDF. Upload a new file to replace it.'
             : 'Upload lecture materials or notes as PDF (Max 50MB)'}
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          PDF URL (Optional)
-        </label>
-        <input
-          type="url"
-          {...register('pdf_url')}
-          className="input w-full"
-          placeholder="https://example.com/document.pdf"
-        />
-        {errors.pdf_url && <p className="text-red-500 text-xs mt-1">{errors.pdf_url.message}</p>}
-        <p className="text-xs text-gray-500 mt-1">
-          Alternative to file upload: Enter a PDF URL. Cannot be used together with PDF file upload.
         </p>
       </div>
 

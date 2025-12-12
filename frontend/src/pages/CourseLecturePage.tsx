@@ -149,8 +149,6 @@ export default function CourseLecturePage() {
             course_id: courseIdNum,
             title: editingLecture.title,
             description: editingLecture.description,
-            video_url: editingLecture.video_url || '',
-            pdf_url: editingLecture.pdf_url || '',
             resource_link_url: editingLecture.resource_link_url || ''
           } : {
             course_id: courseIdNum

@@ -20,8 +20,8 @@ export default function Login() {
       await login(email, password)
       // Get user from store to check role
       const user = useAuthStore.getState().user
-      // Redirect viewers to lectures page instead of dashboard
-      if (user?.roleName === 'viewer') {
+      // Redirect viewers and users to lectures page instead of dashboard
+      if (user?.roleName === 'viewer' || user?.roleName === 'user') {
         navigate('/lectures')
       } else {
         navigate('/')

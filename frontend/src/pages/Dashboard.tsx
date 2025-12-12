@@ -7,8 +7,8 @@ export default function Dashboard() {
   const { data, isLoading } = useDashboardAnalytics()
   const analytics = data?.data
 
-  // Redirect viewer and teacher roles to lectures (they don't have access to dashboard)
-  if (user?.roleName === 'viewer' || user?.roleName === 'teacher') {
+  // Redirect viewer, user, and teacher roles to lectures (they don't have access to dashboard)
+  if (user?.roleName === 'viewer' || user?.roleName === 'user' || user?.roleName === 'teacher') {
     return <Navigate to="/lectures" replace />
   }
 

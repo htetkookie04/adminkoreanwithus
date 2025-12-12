@@ -28,7 +28,7 @@ function App() {
           path="/login" 
           element={
             isAuthenticated 
-              ? (user?.roleName === 'viewer' ? <Navigate to="/lectures" /> : <Navigate to="/" />)
+              ? (user?.roleName === 'viewer' || user?.roleName === 'user' ? <Navigate to="/lectures" /> : <Navigate to="/" />)
               : <Login /> 
           } 
         />
@@ -40,7 +40,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={user?.roleName === 'viewer' ? <Navigate to="/lectures" replace /> : <Dashboard />} />
+          <Route index element={user?.roleName === 'viewer' || user?.roleName === 'user' ? <Navigate to="/lectures" replace /> : <Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetail />} />
           <Route path="courses" element={<Courses />} />

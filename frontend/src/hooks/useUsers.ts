@@ -101,10 +101,33 @@ export function useDeleteUser() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      toast.success('User archived successfully')
+      toast.success('User permanently deleted successfully')
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to delete user'
+      toast.error(errorMessage)
+    }
+  })
+}
+
+export function useToggleUserStatus() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, currentStatus }: { id: number; currentStatus: string }) => {
+      const newStatus = currentStatus === 'active' ? 'suspended' : 'active'
+      const response = await api.put(`/users/${id}`, {
+        status: newStatus
+      })
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      const newStatus = variables.currentStatus === 'active' ? 'suspended' : 'active'
+      toast.success(`User status updated to ${newStatus}`)
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to update user status'
       toast.error(errorMessage)
     }
   })

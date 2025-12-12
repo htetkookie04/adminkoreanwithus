@@ -13,6 +13,7 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
       per_page = '20'
     } = req.query;
 
+    const user = req.user!;
     const limit = parseInt(per_page as string);
     const skip = (parseInt(page as string) - 1) * limit;
 
@@ -33,6 +34,67 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
     if (active !== undefined) {
       where.active = active === 'true';
     }
+
+    // For viewers, only show courses they are enrolled in
+    if (user.roleName === 'viewer') {
+      const enrollments = await prisma.enrollment.findMany({
+        where: {
+          userId: user.id,
+          status: { in: ['approved', 'active'] }
+        },
+        select: {
+          courseId: true
+        }
+      });
+
+      const enrolledCourseIds = enrollments.map(e => e.courseId).filter(Boolean) as number[];
+      
+      if (enrolledCourseIds.length === 0) {
+        // No enrolled courses, return empty result
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page as string),
+            per_page: limit,
+            total: 0,
+            total_pages: 0
+          }
+        });
+      }
+
+      where.id = { in: enrolledCourseIds };
+    }
+    // For teachers, only show courses that have schedules assigned to them
+    else if (user.roleName === 'teacher') {
+      const schedules = await prisma.schedule.findMany({
+        where: {
+          teacherId: user.id
+        },
+        select: {
+          courseId: true
+        }
+      });
+
+      const courseIds = schedules.map(s => s.courseId).filter(Boolean) as number[];
+      
+      if (courseIds.length === 0) {
+        // No courses assigned, return empty result
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page as string),
+            per_page: limit,
+            total: 0,
+            total_pages: 0
+          }
+        });
+      }
+
+      where.id = { in: courseIds };
+    }
+    // Admin and other roles see all courses (no additional filter)
 
     // Get courses
     const [courses, total] = await Promise.all([
@@ -80,6 +142,7 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
 export const getCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const user = req.user!;
 
     const course = await prisma.course.findUnique({
       where: { id: parseInt(id) },
@@ -95,6 +158,21 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
 
     if (!course) {
       throw new AppError('Course not found', 404);
+    }
+
+    // For viewers, check if they are enrolled in this course
+    if (user.roleName === 'viewer') {
+      const enrollment = await prisma.enrollment.findFirst({
+        where: {
+          userId: user.id,
+          courseId: parseInt(id),
+          status: { in: ['approved', 'active'] }
+        }
+      });
+
+      if (!enrollment) {
+        throw new AppError('Access denied. You are not enrolled in this course.', 403);
+      }
     }
 
     // Format response
@@ -421,10 +499,64 @@ export const createSchedule = async (req: AuthRequest, res: Response, next: Next
 // GET /courses/with-lectures - Get courses with lecture counts and teacher info
 export const getCoursesWithLectures = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const user = req.user!;
+    
+    // Build where clause
+    const where: any = {
+      active: true
+    };
+
+    // For viewers, only show courses they are enrolled in
+    if (user.roleName === 'viewer') {
+      const enrollments = await prisma.enrollment.findMany({
+        where: {
+          userId: user.id,
+          status: { in: ['approved', 'active'] }
+        },
+        select: {
+          courseId: true
+        }
+      });
+
+      const enrolledCourseIds = enrollments.map(e => e.courseId).filter(Boolean) as number[];
+      
+      if (enrolledCourseIds.length === 0) {
+        // No enrolled courses, return empty result
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+
+      where.id = { in: enrolledCourseIds };
+    }
+    // For teachers, only show courses that have schedules assigned to them
+    else if (user.roleName === 'teacher') {
+      const schedules = await prisma.schedule.findMany({
+        where: {
+          teacherId: user.id
+        },
+        select: {
+          courseId: true
+        }
+      });
+
+      const courseIds = schedules.map(s => s.courseId).filter(Boolean) as number[];
+      
+      if (courseIds.length === 0) {
+        // No courses assigned, return empty result
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+
+      where.id = { in: courseIds };
+    }
+    // Admin and other roles see all courses (no additional filter)
+
     const courses = await prisma.course.findMany({
-      where: {
-        active: true
-      },
+      where,
       include: {
         lectures: {
           select: {

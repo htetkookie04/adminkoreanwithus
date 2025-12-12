@@ -6,6 +6,7 @@ import { AuthRequest } from '../middleware/auth';
 export const getTimetable = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { status, dayOfWeek } = req.query;
+    const user = req.user!;
 
     // Build where clause
     const where: any = {};
@@ -17,6 +18,35 @@ export const getTimetable = async (req: AuthRequest, res: Response, next: NextFu
     if (dayOfWeek) {
       where.dayOfWeek = dayOfWeek as string;
     }
+
+    // For teachers, only show timetables where they are the assigned teacher
+    if (user.roleName === 'teacher') {
+      // Get teacher's full name
+      const teacherUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true
+        }
+      });
+
+      if (teacherUser) {
+        // Build teacher full name (handle null values)
+        const firstName = teacherUser.firstName || '';
+        const lastName = teacherUser.lastName || '';
+        const teacherFullName = `${firstName} ${lastName}`.trim() || teacherUser.email;
+        // Filter timetables by teacher name
+        where.teacherName = teacherFullName;
+      } else {
+        // If teacher user not found, return empty result
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+    }
+    // Admin and other roles see all timetables (no additional filter)
 
     // Get timetable entries
     const entries = await prisma.timetable.findMany({

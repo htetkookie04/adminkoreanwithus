@@ -23,8 +23,9 @@ export default function Lectures() {
           <p className="text-gray-500 mt-4">Loading courses...</p>
         </div>
       ) : courses.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-500">No courses available.</p>
+        <div className="text-center py-12 bg-white rounded-lg shadow p-8">
+          <p className="text-gray-500 text-lg mb-2">No courses available.</p>
+          <p className="text-gray-400">You are not enrolled in any courses yet.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

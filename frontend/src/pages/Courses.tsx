@@ -3,9 +3,14 @@ import { Link } from 'react-router-dom'
 import { useCoursesWithLectures, useCreateCourse, CourseWithLectures } from '../hooks/useCourses'
 import Modal from '../components/Modal'
 import CourseForm, { CourseFormData } from '../components/forms/CourseForm'
+import { useAuthStore } from '../store/authStore'
 
 export default function Courses() {
+  const { user } = useAuthStore()
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
+  const isTeacher = user?.roleName === 'teacher'
 
   const { data, isLoading } = useCoursesWithLectures()
   const createCourseMutation = useCreateCourse()
@@ -21,9 +26,11 @@ export default function Courses() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Courses</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          + Add Course
-        </button>
+        {!isTeacher && (
+          <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            + Add Course
+          </button>
+        )}
       </div>
 
       <Modal

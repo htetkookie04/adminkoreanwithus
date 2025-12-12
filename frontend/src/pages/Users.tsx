@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, User } from '../hooks/useUsers'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useToggleUserStatus, User } from '../hooks/useUsers'
 import Modal from '../components/Modal'
 import UserForm, { UserFormData } from '../components/forms/UserForm'
 
@@ -14,6 +14,7 @@ export default function Users() {
   const createUserMutation = useCreateUser()
   const updateUserMutation = useUpdateUser()
   const deleteUserMutation = useDeleteUser()
+  const toggleStatusMutation = useToggleUserStatus()
 
   const users = data?.data || []
   const totalPages = data?.pagination?.total_pages || 1
@@ -34,9 +35,13 @@ export default function Users() {
   }
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to permanently delete this user? This action cannot be undone and will remove the user from the database.')) {
       await deleteUserMutation.mutateAsync(id)
     }
+  }
+
+  const handleToggleStatus = async (user: User) => {
+    await toggleStatusMutation.mutateAsync({ id: user.id, currentStatus: user.status })
   }
 
   const handleAdd = () => {
@@ -146,6 +151,21 @@ export default function Users() {
                         className="text-primary-600 hover:text-primary-700 text-sm"
                       >
                         Edit
+                      </button>
+                      <button
+                        onClick={() => handleToggleStatus(user)}
+                        disabled={toggleStatusMutation.isPending}
+                        className={`text-sm disabled:opacity-50 ${
+                          user.status === 'active'
+                            ? 'text-orange-600 hover:text-orange-700'
+                            : 'text-green-600 hover:text-green-700'
+                        }`}
+                      >
+                        {toggleStatusMutation.isPending
+                          ? 'Updating...'
+                          : user.status === 'active'
+                          ? 'Deactivate'
+                          : 'Activate'}
                       </button>
                       <button
                         onClick={() => handleDelete(user.id)}

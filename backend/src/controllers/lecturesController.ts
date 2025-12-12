@@ -100,7 +100,7 @@ const isStudentEnrolled = async (userId: number, courseId: number): Promise<bool
     where: {
       userId,
       courseId,
-      status: 'active'
+      status: { in: ['approved', 'active'] }
     }
   });
   return !!enrollment;
@@ -123,13 +123,13 @@ export const getLectures = async (req: AuthRequest, res: Response, next: NextFun
       where.courseId = parseInt(courseId as string);
     }
 
-    // Student: only show lectures for enrolled courses
-    if (user.roleName === 'user' || user.roleName === 'student') {
-      // Get enrolled course IDs
+    // Student/Viewer: only show lectures for enrolled courses
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
+      // Get enrolled course IDs (approved or active enrollments)
       const enrollments = await prisma.enrollment.findMany({
         where: {
           userId: user.id,
-          status: 'active'
+          status: { in: ['approved', 'active'] }
         },
         select: {
           courseId: true
@@ -137,6 +137,20 @@ export const getLectures = async (req: AuthRequest, res: Response, next: NextFun
       });
 
       const enrolledCourseIds = enrollments.map(e => e.courseId).filter(Boolean) as number[];
+      
+      if (enrolledCourseIds.length === 0) {
+        // No enrolled courses, return empty result
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            page: parseInt(page as string),
+            per_page: limit,
+            total: 0,
+            total_pages: 0
+          }
+        });
+      }
       
       if (courseId) {
         // If filtering by course, check enrollment
@@ -244,10 +258,10 @@ export const getLecture = async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Check access permissions
-    if (user.roleName === 'user' || user.roleName === 'student') {
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const isEnrolled = await isStudentEnrolled(user.id, lecture.courseId);
       if (!isEnrolled) {
-        throw new AppError('Access denied', 403);
+        throw new AppError('Access denied. You are not enrolled in this course.', 403);
       }
     } else if (user.roleName === 'teacher') {
       if (lecture.uploadedBy !== user.id) {
@@ -525,8 +539,8 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
     const { courseId } = req.params;
     const user = req.user!;
 
-    // Check if student is enrolled (if student role)
-    if (user.roleName === 'user' || user.roleName === 'student') {
+    // Check if student/viewer is enrolled (if student/viewer role)
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const isEnrolled = await isStudentEnrolled(user.id, parseInt(courseId));
       if (!isEnrolled) {
         throw new AppError('Access denied. You are not enrolled in this course.', 403);

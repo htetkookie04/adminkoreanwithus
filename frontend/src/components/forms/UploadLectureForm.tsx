@@ -8,34 +8,44 @@ const createLectureSchema = z.object({
   course_id: z.number().int().positive('Course is required'),
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().optional(),
-  video: z.instanceof(File).optional()
-    .refine((file) => !file || file.size <= 500 * 1024 * 1024, 'Video file size must be less than 500MB')
+  video: z.any().optional()
+    .refine((file) => !file || (file instanceof File && file.size <= 500 * 1024 * 1024), 'Video file size must be less than 500MB')
     .refine(
-      (file) => !file || ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type),
+      (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
-  pdf: z.instanceof(File).optional()
-    .refine((file) => !file || file.size <= 50 * 1024 * 1024, 'PDF file size must be less than 50MB')
+  pdf: z.any().optional()
+    .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
-      (file) => !file || file.type === 'application/pdf',
+      (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
     )
-})
+}).refine(
+  (data) => {
+    const hasVideo = data.video instanceof File
+    const hasPdf = data.pdf instanceof File
+    return hasVideo || hasPdf
+  },
+  {
+    message: 'At least one file (video or PDF) must be provided',
+    path: ['video'] // This will show the error on the form
+  }
+)
 
 const updateLectureSchema = z.object({
   course_id: z.number().int().positive('Course is required'),
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().optional(),
-  video: z.instanceof(File).optional()
-    .refine((file) => !file || file.size <= 500 * 1024 * 1024, 'Video file size must be less than 500MB')
+  video: z.any().optional()
+    .refine((file) => !file || (file instanceof File && file.size <= 500 * 1024 * 1024), 'Video file size must be less than 500MB')
     .refine(
-      (file) => !file || ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type),
+      (file) => !file || (file instanceof File && ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'].includes(file.type)),
       'Only video files are allowed (mp4, webm, ogg, mov, avi, mkv)'
     ),
-  pdf: z.instanceof(File).optional()
-    .refine((file) => !file || file.size <= 50 * 1024 * 1024, 'PDF file size must be less than 50MB')
+  pdf: z.any().optional()
+    .refine((file) => !file || (file instanceof File && file.size <= 50 * 1024 * 1024), 'PDF file size must be less than 50MB')
     .refine(
-      (file) => !file || file.type === 'application/pdf',
+      (file) => !file || (file instanceof File && file.type === 'application/pdf'),
       'Only PDF files are allowed'
     )
 })
@@ -176,11 +186,15 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
                     onChange(undefined)
                   }
                 }}
+                key={selectedVideo ? 'has-video' : 'no-video'} // Force re-render to show selected file
               />
               {selectedVideo && selectedVideo instanceof File && (
                 <p className="text-xs text-gray-500 mt-1">
                   Selected: {selectedVideo.name} ({(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB)
                 </p>
+              )}
+              {!selectedVideo && (
+                <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (
                 <p className="text-red-500 text-xs mt-1">{fieldState.error.message}</p>
@@ -219,11 +233,15 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
                     onChange(undefined)
                   }
                 }}
+                key={selectedPdf ? 'has-pdf' : 'no-pdf'} // Force re-render to show selected file
               />
               {selectedPdf && selectedPdf instanceof File && (
                 <p className="text-xs text-gray-500 mt-1">
                   Selected: {selectedPdf.name} ({(selectedPdf.size / (1024 * 1024)).toFixed(2)} MB)
                 </p>
+              )}
+              {!selectedPdf && (
+                <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (
                 <p className="text-red-500 text-xs mt-1">{fieldState.error.message}</p>
@@ -238,6 +256,13 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
             : 'Upload lecture materials or notes as PDF (Max 50MB)'}
         </p>
       </div>
+
+      {/* Show error if neither video nor PDF is provided (for create mode only) */}
+      {!isEditMode && !selectedVideo && !selectedPdf && errors.video && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <p className="text-sm">{errors.video.message || 'At least one file (video or PDF) must be provided'}</p>
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
         <button

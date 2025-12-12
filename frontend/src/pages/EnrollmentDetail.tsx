@@ -59,6 +59,7 @@ export default function EnrollmentDetail() {
     if (!id) return
     try {
       setIsUpdating(true)
+      // Payment status change will automatically update enrollment status in the backend
       await updateEnrollmentMutation.mutateAsync({
         id: parseInt(id),
         data: { paymentStatus: newPaymentStatus }

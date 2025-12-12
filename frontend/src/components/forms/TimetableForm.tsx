@@ -1,7 +1,8 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { api } from '../../lib/api'
 
 const timetableSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
@@ -25,7 +26,17 @@ interface TimetableFormProps {
   initialData?: Partial<TimetableFormData>
 }
 
+interface Teacher {
+  id: number
+  first_name: string
+  last_name: string
+  email: string
+}
+
 export default function TimetableForm({ onSubmit, onCancel, isLoading, initialData }: TimetableFormProps) {
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [loadingTeachers, setLoadingTeachers] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -45,10 +56,42 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
   })
 
   useEffect(() => {
+    fetchTeachers()
+  }, [])
+
+  useEffect(() => {
     if (initialData) {
       reset(initialData)
     }
   }, [initialData, reset])
+
+  const fetchTeachers = async () => {
+    try {
+      setLoadingTeachers(true)
+      // Fetch users with teacher role
+      const response = await api.get('/users?role=teacher&per_page=100&status=active')
+      const allUsers = response.data.data || []
+      // Filter for teachers and format
+      const teacherUsers = allUsers
+        .filter((user: any) => user.role_name === 'teacher')
+        .map((user: any) => ({
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email
+        }))
+      setTeachers(teacherUsers)
+    } catch (error) {
+      console.error('Failed to fetch teachers:', error)
+      setTeachers([])
+    } finally {
+      setLoadingTeachers(false)
+    }
+  }
+
+  const getTeacherFullName = (teacher: Teacher) => {
+    return `${teacher.first_name} ${teacher.last_name}`.trim() || teacher.email
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -126,12 +169,26 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Teacher Name <span className="text-red-500">*</span>
         </label>
-        <input
-          type="text"
-          {...register('teacherName')}
-          className="input w-full"
-          placeholder="Teacher Name"
-        />
+        {loadingTeachers ? (
+          <div className="input w-full bg-gray-50">
+            <span className="text-gray-500">Loading teachers...</span>
+          </div>
+        ) : (
+          <select
+            {...register('teacherName')}
+            className="input w-full"
+          >
+            <option value="">Select a teacher</option>
+            {teachers.map((teacher) => {
+              const fullName = getTeacherFullName(teacher)
+              return (
+                <option key={teacher.id} value={fullName}>
+                  {fullName}
+                </option>
+              )
+            })}
+          </select>
+        )}
         {errors.teacherName && <p className="text-red-500 text-xs mt-1">{errors.teacherName.message}</p>}
       </div>
 

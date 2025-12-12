@@ -18,7 +18,14 @@ export default function Login() {
 
     try {
       await login(email, password)
-      navigate('/')
+      // Get user from store to check role
+      const user = useAuthStore.getState().user
+      // Redirect viewers to lectures page instead of dashboard
+      if (user?.roleName === 'viewer') {
+        navigate('/lectures')
+      } else {
+        navigate('/')
+      }
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Login failed')
     } finally {

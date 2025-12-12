@@ -278,10 +278,18 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const { id } = req.params;
 
-    // Soft delete (set status to archived)
-    const user = await prisma.user.update({
-      where: { id: parseInt(id) },
-      data: { status: 'archived' }
+    // Check if user exists before deleting
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Permanently delete user from database
+    await prisma.user.delete({
+      where: { id: parseInt(id) }
     });
 
     // Log activity
@@ -298,7 +306,7 @@ export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunc
 
     res.json({
       success: true,
-      message: 'User archived successfully'
+      message: 'User permanently deleted successfully'
     });
   } catch (error: any) {
     if (error.code === 'P2025') {

@@ -21,7 +21,7 @@ export const getDashboardAnalytics = async (req: AuthRequest, res: Response, nex
       prisma.course.count({ where: { active: true } }),
       prisma.enrollment.count(),
       prisma.lecture.count(),
-      prisma.schedule.count(),
+      prisma.timetable.count(),
       prisma.enrollment.count({ where: { status: 'active' } }),
       prisma.enrollment.count({ where: { status: 'pending' } }),
       prisma.user.count({ where: { status: 'active' } })

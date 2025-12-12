@@ -43,11 +43,7 @@ export default function CourseLecturePage() {
           }
         })
       } else {
-        // At least one file (video or PDF) must be provided
-        if (!formData.video && !formData.pdf) {
-          toast.error('At least one file (video or PDF) must be provided')
-          return
-        }
+        // Validation is handled by the form schema
         await createLectureMutation.mutateAsync({
           ...formData,
           course_id: courseIdNum

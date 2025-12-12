@@ -77,6 +77,68 @@ export default function Timetable() {
     }
   }
 
+  const formatTime = (timeString: string): string => {
+    try {
+      // Parse the time string (could be ISO date string like "1970-01-01T19:00:00.000Z")
+      const date = new Date(timeString)
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        // If not a valid date, try parsing as time string "HH:MM:SS" or "HH:MM"
+        if (timeString.includes(':')) {
+          const [hours, minutes] = timeString.split(':').map(Number)
+          const tempDate = new Date()
+          tempDate.setHours(hours, minutes || 0, 0, 0)
+          return formatTimeFromDate(tempDate)
+        }
+        return timeString
+      }
+
+      return formatTimeFromDate(date)
+    } catch (error) {
+      // Fallback to original string if parsing fails
+      return timeString
+    }
+  }
+
+  const formatTimeFromDate = (date: Date): string => {
+    // Format to 12-hour format with am/pm
+    let hours = date.getHours()
+    const minutes = date.getMinutes()
+    const ampm = hours >= 12 ? 'pm' : 'am'
+    hours = hours % 12
+    hours = hours ? hours : 12 // the hour '0' should be '12'
+    const minutesStr = minutes < 10 ? `0${minutes}` : minutes.toString()
+    
+    return `${hours}:${minutesStr}${ampm}`
+  }
+
+  const formatTimeRange = (startTime: string, endTime: string): string => {
+    const start = formatTime(startTime)
+    const end = formatTime(endTime)
+    return `${start} to ${end}`
+  }
+
+  const convertTimeForForm = (timeString: string): string => {
+    try {
+      const date = new Date(timeString)
+      if (isNaN(date.getTime())) {
+        // If not a valid date, try parsing as time string "HH:MM:SS" or "HH:MM"
+        if (timeString.includes(':')) {
+          const [hours, minutes] = timeString.split(':')
+          return `${hours}:${minutes || '00'}`
+        }
+        return timeString
+      }
+      // Convert to HH:MM format for time input
+      const hours = date.getHours().toString().padStart(2, '0')
+      const minutes = date.getMinutes().toString().padStart(2, '0')
+      return `${hours}:${minutes}`
+    } catch (error) {
+      return timeString
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -108,8 +170,8 @@ export default function Timetable() {
             courseName: editingEntry.course_name,
             level: editingEntry.level as any,
             dayOfWeek: editingEntry.day_of_week as any,
-            startTime: editingEntry.start_time,
-            endTime: editingEntry.end_time,
+            startTime: convertTimeForForm(editingEntry.start_time),
+            endTime: convertTimeForForm(editingEntry.end_time),
             teacherName: editingEntry.teacher_name,
             status: editingEntry.status as any
           } : undefined}
@@ -175,7 +237,7 @@ export default function Timetable() {
                   </td>
                   <td>{entry.day_of_week}</td>
                   <td>
-                    {entry.start_time} - {entry.end_time}
+                    {formatTimeRange(entry.start_time, entry.end_time)}
                   </td>
                   <td>{entry.teacher_name}</td>
                   <td>

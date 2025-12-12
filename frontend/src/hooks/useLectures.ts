@@ -78,11 +78,18 @@ export function useCreateLecture() {
       if (data.description) {
         formData.append('description', data.description)
       }
-      if (data.video) {
+      // Check if video is a File instance before appending
+      if (data.video && data.video instanceof File) {
         formData.append('video', data.video)
       }
-      if (data.pdf) {
+      // Check if pdf is a File instance before appending
+      if (data.pdf && data.pdf instanceof File) {
         formData.append('pdf', data.pdf)
+      }
+
+      // Validate that at least one file is provided
+      if (!formData.has('video') && !formData.has('pdf')) {
+        throw new Error('At least one file (video or PDF) must be provided')
       }
 
       const response = await api.post('/lectures', formData, {

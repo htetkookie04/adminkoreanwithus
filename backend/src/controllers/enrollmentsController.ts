@@ -312,7 +312,38 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
 
     if (status !== undefined) updateData.status = status;
     if (notes !== undefined) updateData.notes = notes;
-    if (paymentStatus !== undefined) updateData.paymentStatus = paymentStatus;
+    if (paymentStatus !== undefined) {
+      updateData.paymentStatus = paymentStatus;
+      
+      // Automatically update enrollment status based on payment status
+      // Get current enrollment to check existing status
+      const currentEnrollment = await prisma.enrollment.findUnique({
+        where: { id: parseInt(id) }
+      });
+
+      if (currentEnrollment) {
+        // If payment status is being changed, update enrollment status accordingly
+        if (paymentStatus === 'paid') {
+          // When payment is made, approve the enrollment if it's pending
+          if (currentEnrollment.status === 'pending') {
+            updateData.status = 'approved';
+          } else if (currentEnrollment.status === 'cancelled') {
+            // If it was cancelled, reactivate it
+            updateData.status = 'approved';
+          }
+          // If already approved/active/completed, keep the current status
+        } else if (paymentStatus === 'refunded') {
+          // When payment is refunded, cancel the enrollment
+          updateData.status = 'cancelled';
+        } else if (paymentStatus === 'unpaid') {
+          // When payment is unpaid, set to pending if it was approved/active
+          if (currentEnrollment.status === 'approved' || currentEnrollment.status === 'active') {
+            updateData.status = 'pending';
+          }
+          // If already pending/cancelled/completed, keep the current status
+        }
+      }
+    }
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError('No fields to update', 400);

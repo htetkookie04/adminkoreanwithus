@@ -18,13 +18,20 @@ import MyLectures from './pages/MyLectures'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
 
   return (
     <BrowserRouter>
       <ToastContainer />
       <Routes>
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated 
+              ? (user?.roleName === 'viewer' ? <Navigate to="/lectures" /> : <Navigate to="/" />)
+              : <Login /> 
+          } 
+        />
         <Route
           path="/"
           element={

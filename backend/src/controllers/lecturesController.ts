@@ -39,6 +39,13 @@ export const updateLectureSchema = z.object({
   course_id: z.number().int().positive().optional(),
   title: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
+  resource_link_url: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : val),
+    z.union([
+      z.null(),
+      z.string().url('Invalid resource link URL format')
+    ]).optional()
+  ),
 });
 
 // Configure multer for video uploads

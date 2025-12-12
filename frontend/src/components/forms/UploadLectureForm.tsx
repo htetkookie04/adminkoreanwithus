@@ -291,9 +291,9 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       </div>
 
       {/* Show error if neither video nor PDF is provided (for create mode only) */}
-      {!isEditMode && !selectedVideo && !selectedPdf && !videoUrl && !pdfUrl && errors.video && (
+      {!isEditMode && !selectedVideo && !selectedPdf && !watch('resource_link_url') && errors.video && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          <p className="text-sm">{String(errors.video.message) || 'At least one file (video or PDF) must be provided'}</p>
+          <p className="text-sm">{String(errors.video.message) || 'At least one content source (video file, PDF file, or Resource Link URL) must be provided'}</p>
         </div>
       )}
 

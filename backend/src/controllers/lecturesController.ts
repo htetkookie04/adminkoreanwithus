@@ -26,6 +26,13 @@ export const createLectureSchema = z.object({
       z.string().url('Invalid PDF URL format')
     ]).optional()
   ),
+  resource_link_url: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined ? null : val),
+    z.union([
+      z.null(),
+      z.string().url('Invalid resource link URL format')
+    ]).optional()
+  ),
 });
 
 export const updateLectureSchema = z.object({
@@ -217,6 +224,7 @@ export const getLectures = async (req: AuthRequest, res: Response, next: NextFun
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
+      resource_link_url: lecture.resourceLinkUrl,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -291,6 +299,7 @@ export const getLecture = async (req: AuthRequest, res: Response, next: NextFunc
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
+      resource_link_url: lecture.resourceLinkUrl,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -321,6 +330,7 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     // Get URL fields from request body (FormData sends them as strings)
     const videoUrlFromBody = req.body.video_url?.trim() || null;
     const pdfUrlFromBody = req.body.pdf_url?.trim() || null;
+    const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
 
     // Validate that at least one content source is provided (file or URL)
     const hasVideoContent = !!(videoFile || videoUrlFromBody);
@@ -355,7 +365,8 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       title: req.body.title || '',
       description: req.body.description || null,
       video_url: videoUrlFromBody || null,
-      pdf_url: pdfUrlFromBody || null
+      pdf_url: pdfUrlFromBody || null,
+      resource_link_url: resourceLinkUrlFromBody || null
     });
 
     // Verify course exists
@@ -378,6 +389,7 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
         description: validatedData.description,
         videoUrl,
         pdfUrl,
+        resourceLinkUrl: validatedData.resource_link_url,
         uploadedBy: user.id,
         roleOfUploader
       }
@@ -401,6 +413,7 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
+      resource_link_url: lecture.resourceLinkUrl,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -462,6 +475,7 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
     if (validatedData.title !== undefined) updateData.title = validatedData.title;
     if (validatedData.description !== undefined) updateData.description = validatedData.description;
     if (validatedData.course_id !== undefined) updateData.courseId = validatedData.course_id;
+    if (validatedData.resource_link_url !== undefined) updateData.resourceLinkUrl = validatedData.resource_link_url;
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError('No fields to update', 400);
@@ -491,6 +505,7 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
+      resource_link_url: lecture.resourceLinkUrl,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -631,6 +646,7 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
+      resource_link_url: lecture.resourceLinkUrl,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,

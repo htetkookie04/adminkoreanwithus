@@ -325,18 +325,19 @@ model Waitlist {
 }
 
 model Lecture {
-  id             Int      @id @default(autoincrement())
-  courseId       Int      @map("course_id")
-  title          String
-  description    String?
-  videoUrl       String?  @map("video_url")
-  pdfUrl         String?  @map("pdf_url")
-  uploadedBy     Int      @map("uploaded_by")
-  roleOfUploader String   @map("role_of_uploader")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  course         Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  uploader       User     @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  id              Int      @id @default(autoincrement())
+  courseId        Int      @map("course_id")
+  title           String
+  description     String?
+  videoUrl        String?  @map("video_url")
+  pdfUrl          String?  @map("pdf_url")
+  resourceLinkUrl String?  @map("resource_link_url")
+  uploadedBy      Int      @map("uploaded_by")
+  roleOfUploader  String   @map("role_of_uploader")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploader        User     @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@index([courseId], map: "lectures_course_idx")
   @@index([uploadedBy])

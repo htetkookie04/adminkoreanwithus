@@ -9,6 +9,7 @@ export interface Lecture {
   description?: string
   video_url?: string | null
   pdf_url?: string | null
+  resource_link_url?: string | null
   uploaded_by: number
   role_of_uploader: 'admin' | 'teacher'
   created_at: string
@@ -26,6 +27,7 @@ export interface LectureFormData {
   video_url?: string
   pdf?: File
   pdf_url?: string
+  resource_link_url?: string
 }
 
 export function useLectures(params?: {
@@ -95,6 +97,10 @@ export function useCreateLecture() {
       // Add PDF URL if provided
       if (data.pdf_url && data.pdf_url.trim() !== '') {
         formData.append('pdf_url', data.pdf_url.trim())
+      }
+      // Add resource link URL if provided
+      if (data.resource_link_url && data.resource_link_url.trim() !== '') {
+        formData.append('resource_link_url', data.resource_link_url.trim())
       }
 
       // Validate that at least one content source is provided

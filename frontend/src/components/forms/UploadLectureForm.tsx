@@ -27,6 +27,10 @@ const createLectureSchema = z.object({
   pdf_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid PDF URL format'
+  ),
+  resource_link_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid resource link URL format'
   )
 }).refine(
   (data) => {
@@ -85,6 +89,10 @@ const updateLectureSchema = z.object({
   pdf_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid PDF URL format'
+  ),
+  resource_link_url: z.string().optional().refine(
+    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    'Invalid resource link URL format'
   )
 })
 
@@ -120,7 +128,8 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       video: undefined,
       video_url: initialData?.video_url || '',
       pdf: undefined,
-      pdf_url: initialData?.pdf_url || ''
+      pdf_url: initialData?.pdf_url || '',
+      resource_link_url: initialData?.resource_link_url || ''
     }
   })
 
@@ -136,7 +145,8 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         video: undefined,
         video_url: initialData.video_url || '',
         pdf: undefined,
-        pdf_url: initialData.pdf_url || ''
+        pdf_url: initialData.pdf_url || '',
+        resource_link_url: initialData.resource_link_url || ''
       })
     } else {
       reset({
@@ -146,7 +156,8 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         video: undefined,
         video_url: '',
         pdf: undefined,
-        pdf_url: ''
+        pdf_url: '',
+        resource_link_url: ''
       })
     }
   }, [initialData, reset])
@@ -332,6 +343,22 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
         {errors.pdf_url && <p className="text-red-500 text-xs mt-1">{errors.pdf_url.message}</p>}
         <p className="text-xs text-gray-500 mt-1">
           Alternative to file upload: Enter a PDF URL. Cannot be used together with PDF file upload.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Resource Link URL (Optional)
+        </label>
+        <input
+          type="url"
+          {...register('resource_link_url')}
+          className="input w-full"
+          placeholder="Enter an external resource link..."
+        />
+        {errors.resource_link_url && <p className="text-red-500 text-xs mt-1">{errors.resource_link_url.message}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Enter a direct URL for an external resource (e.g., article, website, flashcard set, etc.)
         </p>
       </div>
 

@@ -150,7 +150,8 @@ export default function CourseLecturePage() {
             title: editingLecture.title,
             description: editingLecture.description,
             video_url: editingLecture.video_url || '',
-            pdf_url: editingLecture.pdf_url || ''
+            pdf_url: editingLecture.pdf_url || '',
+            resource_link_url: editingLecture.resource_link_url || ''
           } : {
             course_id: courseIdNum
           }}
@@ -209,8 +210,8 @@ export default function CourseLecturePage() {
                         <span>By: {lecture.uploader_name}</span>
                       )}
                     </div>
-                    {lecture.pdf_url && (
-                      <div className="mt-2">
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      {lecture.pdf_url && (
                         <a
                           href={lecture.pdf_url.startsWith('http') ? lecture.pdf_url : `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${lecture.pdf_url}`}
                           target="_blank"
@@ -223,8 +224,21 @@ export default function CourseLecturePage() {
                           </svg>
                           Download PDF
                         </a>
-                      </div>
-                    )}
+                      )}
+                      {lecture.resource_link_url && (
+                        <a
+                          href={lecture.resource_link_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          Resource Link
+                        </a>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     {lecture.video_url && (

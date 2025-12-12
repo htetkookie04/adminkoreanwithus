@@ -438,11 +438,15 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
     const { id } = req.params;
     const user = req.user!;
 
+    // Get resource link URL from request body
+    const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
+
     // Validate request body
     const validatedData = updateLectureSchema.parse({
       course_id: req.body.course_id ? parseInt(req.body.course_id) : undefined,
       title: req.body.title,
-      description: req.body.description
+      description: req.body.description,
+      resource_link_url: resourceLinkUrlFromBody || null
     });
 
     // Check if lecture exists and get current data

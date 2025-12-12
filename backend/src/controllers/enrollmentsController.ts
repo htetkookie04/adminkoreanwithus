@@ -516,3 +516,46 @@ export const rejectEnrollment = async (req: AuthRequest, res: Response, next: Ne
     next(error);
   }
 };
+
+export const deleteEnrollment = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    // Check if enrollment exists before deleting
+    const enrollment = await prisma.enrollment.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!enrollment) {
+      throw new AppError('Enrollment not found', 404);
+    }
+
+    // Permanently delete enrollment from database
+    await prisma.enrollment.delete({
+      where: { id: parseInt(id) }
+    });
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'enrollment.deleted',
+          resourceType: 'enrollment',
+          resourceId: parseInt(id)
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Enrollment permanently deleted successfully'
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      throw new AppError('Enrollment not found', 404);
+    }
+    next(error);
+  }
+};

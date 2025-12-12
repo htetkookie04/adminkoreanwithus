@@ -6,7 +6,8 @@ import {
   createEnrollment,
   updateEnrollment,
   approveEnrollment,
-  rejectEnrollment
+  rejectEnrollment,
+  deleteEnrollment
 } from '../controllers/enrollmentsController';
 
 export const enrollmentsRouter = Router();
@@ -19,4 +20,5 @@ enrollmentsRouter.post('/', requirePermission('enrollments', 'create'), createEn
 enrollmentsRouter.put('/:id', requirePermission('enrollments', 'update'), updateEnrollment);
 enrollmentsRouter.post('/:id/approve', requirePermission('enrollments', 'approve'), approveEnrollment);
 enrollmentsRouter.post('/:id/reject', requirePermission('enrollments', 'update'), rejectEnrollment);
+enrollmentsRouter.delete('/:id', requirePermission('enrollments', 'delete'), deleteEnrollment);
 

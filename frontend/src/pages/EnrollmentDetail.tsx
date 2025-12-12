@@ -1,39 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api } from '../lib/api'
-import { useUpdateEnrollment, useApproveEnrollment } from '../hooks/useEnrollments'
+import { useUpdateEnrollment, useApproveEnrollment, useEnrollment } from '../hooks/useEnrollments'
 
 export default function EnrollmentDetail() {
   const { id } = useParams()
-  const [enrollment, setEnrollment] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
 
+  const { data: enrollmentData, isLoading: loading } = useEnrollment(id)
+  const enrollment = enrollmentData?.data
   const updateEnrollmentMutation = useUpdateEnrollment()
   const approveEnrollmentMutation = useApproveEnrollment()
-
-  useEffect(() => {
-    if (id) {
-      fetchEnrollment()
-    }
-  }, [id])
-
-  const fetchEnrollment = async () => {
-    try {
-      const response = await api.get(`/enrollments/${id}`)
-      setEnrollment(response.data.data)
-    } catch (error) {
-      console.error('Failed to fetch enrollment:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleApprove = async () => {
     if (!id) return
     try {
       await approveEnrollmentMutation.mutateAsync(parseInt(id))
-      await fetchEnrollment()
+      // React Query will automatically refetch due to cache invalidation
     } catch (error) {
       console.error('Failed to approve enrollment:', error)
     }
@@ -47,7 +29,7 @@ export default function EnrollmentDetail() {
         id: parseInt(id),
         data: { status: newStatus }
       })
-      await fetchEnrollment()
+      // React Query will automatically refetch due to cache invalidation
     } catch (error) {
       console.error('Failed to update enrollment:', error)
     } finally {
@@ -64,7 +46,7 @@ export default function EnrollmentDetail() {
         id: parseInt(id),
         data: { paymentStatus: newPaymentStatus }
       })
-      await fetchEnrollment()
+      // React Query will automatically refetch due to cache invalidation
     } catch (error) {
       console.error('Failed to update payment status:', error)
     } finally {

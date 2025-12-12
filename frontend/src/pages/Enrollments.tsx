@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { useEnrollments, useCreateEnrollment, useApproveEnrollment, Enrollment } from '../hooks/useEnrollments'
+import { useEnrollments, useCreateEnrollment, useApproveEnrollment, useDeleteEnrollment, Enrollment } from '../hooks/useEnrollments'
 import Modal from '../components/Modal'
 import EnrollmentForm, { EnrollmentFormData } from '../components/forms/EnrollmentForm'
 import { useAuthStore } from '../store/authStore'
@@ -18,6 +18,7 @@ export default function Enrollments() {
   const { data, isLoading } = useEnrollments({ status: statusFilter || undefined, per_page: 100 })
   const createEnrollmentMutation = useCreateEnrollment()
   const approveEnrollmentMutation = useApproveEnrollment()
+  const deleteEnrollmentMutation = useDeleteEnrollment()
 
   const enrollments = data?.data || []
 
@@ -28,6 +29,12 @@ export default function Enrollments() {
 
   const handleApprove = async (id: number) => {
     await approveEnrollmentMutation.mutateAsync(id)
+  }
+
+  const handleDelete = async (id: number) => {
+    if (window.confirm('Are you sure you want to permanently delete this enrollment? This action cannot be undone and will remove the enrollment from the database.')) {
+      await deleteEnrollmentMutation.mutateAsync(id)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -124,21 +131,30 @@ export default function Enrollments() {
                   </td>
                   <td>{new Date(enrollment.enrolled_at).toLocaleDateString()}</td>
                   <td>
-                    {enrollment.status === 'pending' && (
-                      <button
-                        onClick={() => handleApprove(enrollment.id)}
-                        disabled={approveEnrollmentMutation.isPending}
-                        className="text-sm text-primary-600 hover:text-primary-700 mr-3 disabled:opacity-50"
+                    <div className="flex items-center gap-3">
+                      {enrollment.status === 'pending' && (
+                        <button
+                          onClick={() => handleApprove(enrollment.id)}
+                          disabled={approveEnrollmentMutation.isPending}
+                          className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                        >
+                          {approveEnrollmentMutation.isPending ? 'Approving...' : 'Approve'}
+                        </button>
+                      )}
+                      <Link
+                        to={`/enrollments/${enrollment.id}`}
+                        className="text-sm text-primary-600 hover:text-primary-700"
                       >
-                        {approveEnrollmentMutation.isPending ? 'Approving...' : 'Approve'}
+                        View
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(enrollment.id)}
+                        disabled={deleteEnrollmentMutation.isPending}
+                        className="text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
+                      >
+                        {deleteEnrollmentMutation.isPending ? 'Deleting...' : 'Delete'}
                       </button>
-                    )}
-                    <Link
-                      to={`/enrollments/${enrollment.id}`}
-                      className="text-sm text-primary-600 hover:text-primary-700"
-                    >
-                      View
-                    </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

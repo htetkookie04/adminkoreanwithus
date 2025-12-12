@@ -42,6 +42,17 @@ export function useEnrollments(params?: {
   })
 }
 
+export function useEnrollment(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ['enrollment', id],
+    queryFn: async () => {
+      const response = await api.get(`/enrollments/${id}`)
+      return response.data
+    },
+    enabled: !!id
+  })
+}
+
 export function useCreateEnrollment() {
   const queryClient = useQueryClient()
 
@@ -107,6 +118,26 @@ export function useApproveEnrollment() {
     },
     onError: (error: any) => {
       const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to approve enrollment'
+      toast.error(errorMessage)
+    }
+  })
+}
+
+export function useDeleteEnrollment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const response = await api.delete(`/enrollments/${id}`)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+      queryClient.invalidateQueries({ queryKey: ['enrollment'] })
+      toast.success('Enrollment permanently deleted successfully')
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || error.message || 'Failed to delete enrollment'
       toast.error(errorMessage)
     }
   })

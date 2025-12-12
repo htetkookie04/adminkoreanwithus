@@ -40,7 +40,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          <Route index element={user?.roleName === 'viewer' ? <Navigate to="/lectures" replace /> : <Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetail />} />
           <Route path="courses" element={<Courses />} />

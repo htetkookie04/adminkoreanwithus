@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
 interface ProtectedRouteProps {
@@ -7,10 +7,23 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Viewer role restrictions: only allow /lectures routes
+  if (user?.roleName === 'viewer') {
+    const allowedPaths = ['/lectures']
+    const isAllowedPath = allowedPaths.some(path => 
+      location.pathname === path || location.pathname.startsWith(path + '/')
+    )
+    
+    if (!isAllowedPath) {
+      return <Navigate to="/lectures" replace />
+    }
   }
 
   return <>{children}</>

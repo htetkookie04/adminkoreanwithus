@@ -92,9 +92,17 @@ export function useUpdateEnrollment() {
       const response = await api.put(`/enrollments/${id}`, data)
       return response.data
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (responseData, variables) => {
+      // Update the enrollment cache immediately with the response data
+      // This ensures the UI updates instantly without waiting for a refetch
+      queryClient.setQueryData(['enrollment', variables.id.toString()], responseData)
+      queryClient.setQueryData(['enrollment', variables.id], responseData)
+      
+      // Invalidate queries to ensure all related data is refreshed
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
       queryClient.invalidateQueries({ queryKey: ['enrollment', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables.id.toString()] })
+      
       toast.success('Enrollment updated successfully')
     },
     onError: (error: any) => {

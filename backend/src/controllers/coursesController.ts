@@ -35,8 +35,8 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
       where.active = active === 'true';
     }
 
-    // For viewers, only show courses they are enrolled in
-    if (user.roleName === 'viewer') {
+    // For users/students/viewers, only show courses they are enrolled in
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const enrollments = await prisma.enrollment.findMany({
         where: {
           userId: user.id,
@@ -160,8 +160,8 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
       throw new AppError('Course not found', 404);
     }
 
-    // For viewers, check if they are enrolled in this course
-    if (user.roleName === 'viewer') {
+    // For users/students/viewers, check if they are enrolled in this course
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const enrollment = await prisma.enrollment.findFirst({
         where: {
           userId: user.id,
@@ -506,8 +506,8 @@ export const getCoursesWithLectures = async (req: AuthRequest, res: Response, ne
       active: true
     };
 
-    // For viewers, only show courses they are enrolled in
-    if (user.roleName === 'viewer') {
+    // For users/students/viewers, only show courses they are enrolled in
+    if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const enrollments = await prisma.enrollment.findMany({
         where: {
           userId: user.id,

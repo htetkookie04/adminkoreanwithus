@@ -351,7 +351,31 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
 
     const enrollment = await prisma.enrollment.update({
       where: { id: parseInt(id) },
-      data: updateData
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true
+          }
+        },
+        course: {
+          select: {
+            title: true,
+            level: true
+          }
+        },
+        schedule: {
+          select: {
+            startTime: true,
+            endTime: true,
+            location: true,
+            teacherId: true
+          }
+        }
+      }
     });
 
     // Log activity
@@ -367,20 +391,35 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
       });
     }
 
-    // Format response
+    // Format response to match getEnrollment format
     const formattedEnrollment = {
-      id: enrollment.id,
+      ...enrollment,
+      email: enrollment.user?.email || '',
+      first_name: enrollment.user?.firstName || '',
+      last_name: enrollment.user?.lastName || '',
+      phone: enrollment.user?.phone || null,
+      course_title: enrollment.course?.title || '',
+      course_level: enrollment.course?.level || null,
+      start_time: enrollment.schedule?.startTime || null,
+      end_time: enrollment.schedule?.endTime || null,
+      location: enrollment.schedule?.location || null,
+      teacher_id: enrollment.schedule?.teacherId || null,
       user_id: enrollment.userId,
       course_id: enrollment.courseId,
       schedule_id: enrollment.scheduleId,
-      status: enrollment.status,
       enrolled_at: enrollment.enrolledAt,
-      notes: enrollment.notes,
-      source: enrollment.source,
-      payment_status: enrollment.paymentStatus,
       created_at: enrollment.createdAt,
       updated_at: enrollment.updatedAt
     };
+    delete (formattedEnrollment as any).user;
+    delete (formattedEnrollment as any).course;
+    delete (formattedEnrollment as any).schedule;
+    delete (formattedEnrollment as any).enrolledAt;
+    delete (formattedEnrollment as any).createdAt;
+    delete (formattedEnrollment as any).updatedAt;
+    delete (formattedEnrollment as any).userId;
+    delete (formattedEnrollment as any).courseId;
+    delete (formattedEnrollment as any).scheduleId;
 
     res.json({
       success: true,

@@ -174,26 +174,26 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
           control={control}
           render={({ field: { onChange, value, ...field }, fieldState }) => (
             <>
-              <input
-                type="file"
-                accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-msvideo,video/x-matroska"
-                className="input w-full"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    onChange(file)
-                  } else {
-                    onChange(undefined)
-                  }
-                }}
-                key={selectedVideo ? 'has-video' : 'no-video'} // Force re-render to show selected file
-              />
-              {selectedVideo && selectedVideo instanceof File && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Selected: {selectedVideo.name} ({(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-              )}
-              {!selectedVideo && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/ogg,video/quicktime,video/x-msvideo,video/x-matroska"
+                  className="input w-full"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    onChange(file || undefined)
+                  }}
+                  {...field}
+                  value={undefined} // Reset value to allow re-selecting the same file
+                />
+              </div>
+              {selectedVideo && selectedVideo instanceof File ? (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm text-green-700 font-medium">
+                    ✓ Selected: {selectedVideo.name} ({(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB)
+                  </p>
+                </div>
+              ) : (
                 <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (
@@ -221,26 +221,26 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
           control={control}
           render={({ field: { onChange, value, ...field }, fieldState }) => (
             <>
-              <input
-                type="file"
-                accept="application/pdf"
-                className="input w-full"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    onChange(file)
-                  } else {
-                    onChange(undefined)
-                  }
-                }}
-                key={selectedPdf ? 'has-pdf' : 'no-pdf'} // Force re-render to show selected file
-              />
-              {selectedPdf && selectedPdf instanceof File && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Selected: {selectedPdf.name} ({(selectedPdf.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
-              )}
-              {!selectedPdf && (
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="input w-full"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    onChange(file || undefined)
+                  }}
+                  {...field}
+                  value={undefined} // Reset value to allow re-selecting the same file
+                />
+              </div>
+              {selectedPdf && selectedPdf instanceof File ? (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm text-green-700 font-medium">
+                    ✓ Selected: {selectedPdf.name} ({(selectedPdf.size / (1024 * 1024)).toFixed(2)} MB)
+                  </p>
+                </div>
+              ) : (
                 <p className="text-xs text-gray-400 mt-1">No file chosen</p>
               )}
               {fieldState.error && (

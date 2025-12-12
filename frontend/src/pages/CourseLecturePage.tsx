@@ -178,6 +178,37 @@ export default function CourseLecturePage() {
               <p className="text-gray-600">{selectedLecture.description}</p>
             </div>
           )}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap gap-3">
+              {selectedLecture.pdf_url && (
+                <a
+                  href={selectedLecture.pdf_url.startsWith('http') ? selectedLecture.pdf_url : `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${selectedLecture.pdf_url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Download PDF
+                </a>
+              )}
+              {selectedLecture.resource_link_url && (
+                <a
+                  href={selectedLecture.resource_link_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Resource Link
+                </a>
+              )}
+            </div>
+          </div>
         </Modal>
       )}
 

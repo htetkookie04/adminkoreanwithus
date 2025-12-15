@@ -171,13 +171,6 @@ export default function LectureResourceViewer({
               >
                 View PDF
               </a>
-              <a
-                href={getFullUrl(pdfUrl)}
-                download
-                className="btn btn-secondary btn-sm"
-              >
-                Download
-              </a>
             </div>
           </div>
           {showPdfModal && (

@@ -87,6 +87,13 @@ export default function LectureResourceViewer({
                 href={getFullUrl(videoUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => {
+                  // Prevent opening if URL might be invalid
+                  if (!videoUrl || videoUrl.trim() === '') {
+                    e.preventDefault();
+                    alert('Video URL is not available');
+                  }
+                }}
                 className="btn btn-secondary btn-sm"
               >
                 Open

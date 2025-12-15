@@ -94,6 +94,16 @@ app.use('/uploads', (req, res, next) => {
   }
 }));
 
+// Handle 404 for missing upload files gracefully
+app.use('/uploads', (req, res) => {
+  console.error(`File not found: ${req.path}`);
+  res.status(404).json({ 
+    success: false, 
+    message: 'File not found',
+    path: req.path 
+  });
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({ 

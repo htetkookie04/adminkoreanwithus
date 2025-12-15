@@ -61,9 +61,10 @@ export const errorHandler = (
 
   // Unexpected errors
   console.error('Unexpected error:', err);
+  console.error('Error stack:', err.stack);
   const errorMessage = process.env.NODE_ENV === 'production' 
     ? 'Internal server error' 
-    : err.message;
+    : err.message || 'An unexpected error occurred';
   
   res.status(500).json({
     success: false,

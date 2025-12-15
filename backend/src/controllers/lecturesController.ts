@@ -316,6 +316,10 @@ export const getLecture = async (req: AuthRequest, res: Response, next: NextFunc
 // POST /lectures - Create lecture (admin/teacher only)
 export const createLecture = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    // Debug logging
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+    
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     const videoFile = files?.video?.[0];
     const pdfFile = files?.pdf?.[0];
@@ -345,10 +349,27 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const roleOfUploader = user.roleName === 'admin' || user.roleName === 'super_admin' ? 'admin' : 'teacher';
 
     // Validate request body - handle null/undefined from FormData
+    // Parse course_id - handle string, number, or undefined
+    let courseId: number | undefined;
+    if (req.body.course_id !== undefined && req.body.course_id !== null && req.body.course_id !== '') {
+      const parsed = parseInt(String(req.body.course_id));
+      if (!isNaN(parsed)) {
+        courseId = parsed;
+      }
+    }
+    
+    // Parse title - ensure it's a string
+    const title = req.body.title ? String(req.body.title).trim() : '';
+    
+    // Parse description - handle empty strings
+    const description = req.body.description && req.body.description.trim() !== '' 
+      ? req.body.description.trim() 
+      : null;
+
     const validatedData = createLectureSchema.parse({
-      course_id: req.body.course_id ? parseInt(req.body.course_id) : undefined,
-      title: req.body.title || '',
-      description: req.body.description || null,
+      course_id: courseId,
+      title: title,
+      description: description,
       resource_link_url: resourceLinkUrlFromBody || null
     });
 
@@ -409,8 +430,10 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.errors);
       return next(new AppError(error.errors[0].message, 400));
     }
+    console.error('Error creating lecture:', error);
     next(error);
   }
 };

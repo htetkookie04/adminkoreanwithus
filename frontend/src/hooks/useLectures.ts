@@ -105,11 +105,8 @@ export function useCreateLecture() {
         throw new Error('At least one content source (video file, PDF file, or Resource Link URL) must be provided')
       }
 
-      const response = await api.post('/lectures', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      // Don't set Content-Type manually - axios will set it with the correct boundary
+      const response = await api.post('/lectures', formData)
       return response.data
     },
     onSuccess: (_, variables) => {

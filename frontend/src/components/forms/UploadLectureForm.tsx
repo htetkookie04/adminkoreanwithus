@@ -23,7 +23,7 @@ const createLectureSchema = z.object({
   resource_link_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid resource link URL format'
-  )
+    )
 }).refine(
   (data) => {
     const hasVideo = data.video instanceof File
@@ -61,7 +61,7 @@ const updateLectureSchema = z.object({
   resource_link_url: z.string().optional().refine(
     (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
     'Invalid resource link URL format'
-  )
+    )
 })
 
 export type LectureFormData = z.infer<typeof createLectureSchema> | z.infer<typeof updateLectureSchema>

@@ -59,19 +59,52 @@ export const errorHandler = (
     });
   }
 
-  // Unexpected errors
-  console.error('Unexpected error:', err);
-  console.error('Error stack:', err.stack);
-  const errorMessage = process.env.NODE_ENV === 'production' 
-    ? 'Internal server error' 
-    : err.message || 'An unexpected error occurred';
+  // Unexpected errors - Enhanced logging
+  console.error('═══════════════════════════════════════════════════════');
+  console.error('❌ UNEXPECTED ERROR:', err.message || 'Unknown error');
+  console.error('📍 Error Type:', err.constructor.name);
+  console.error('📍 Error Code:', (err as any).code || 'N/A');
+  console.error('📍 Request URL:', req.originalUrl);
+  console.error('📍 Request Method:', req.method);
+  console.error('📍 Request Params:', req.params);
+  console.error('📍 Request Query:', req.query);
+  console.error('📍 User ID:', (req as any).user?.id || 'Not authenticated');
+  console.error('📍 Stack Trace:');
+  console.error(err.stack || 'No stack trace available');
+  console.error('═══════════════════════════════════════════════════════');
   
-  res.status(500).json({
+  // Check for common error types
+  let errorMessage = 'Internal server error';
+  let statusCode = 500;
+  
+  if (process.env.NODE_ENV !== 'production') {
+    // In development, show detailed error
+    errorMessage = err.message || 'An unexpected error occurred';
+    
+    // Check for Prisma errors
+    if ((err as any).code?.startsWith('P')) {
+      errorMessage = `Database error: ${err.message}`;
+      console.error('🔍 Prisma Error Code:', (err as any).code);
+    }
+    
+    // Check for database connection errors
+    if (err.message?.includes('connect') || err.message?.includes('ECONNREFUSED')) {
+      errorMessage = 'Database connection failed. Check DATABASE_URL and ensure PostgreSQL is running.';
+      console.error('🔍 Database Connection Error Detected');
+    }
+  }
+  
+  res.status(statusCode).json({
     success: false,
     message: errorMessage,
     error: {
       message: errorMessage,
-      statusCode: 500
+      statusCode: statusCode,
+      ...(process.env.NODE_ENV !== 'production' && {
+        type: err.constructor.name,
+        code: (err as any).code,
+        stack: err.stack
+      })
     }
   });
 };

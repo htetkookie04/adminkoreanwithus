@@ -656,10 +656,18 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
     const { courseId } = req.params;
     const user = req.user!;
 
+    console.log('[getLecturesByCourse] Request:', { 
+      courseId, 
+      userId: user.id, 
+      role: user.roleName,
+      query: req.query 
+    });
+
     // Check if student/viewer is enrolled (if student/viewer role)
     if (user.roleName === 'user' || user.roleName === 'student' || user.roleName === 'viewer') {
       const isEnrolled = await isStudentEnrolled(user.id, parseInt(courseId));
       if (!isEnrolled) {
+        console.error('[getLecturesByCourse] Access denied - not enrolled:', { userId: user.id, courseId });
         throw new AppError('Access denied. You are not enrolled in this course.', 403);
       }
     }
@@ -668,11 +676,12 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
     // This is different from getLectures which filters by role
     const parsedCourseId = parseInt(courseId);
     
-    if (isNaN(parsedCourseId)) {
+    if (isNaN(parsedCourseId) || parsedCourseId <= 0) {
+      console.error('[getLecturesByCourse] Invalid course ID:', courseId);
       throw new AppError('Invalid course ID', 400);
     }
 
-    console.log(`[getLecturesByCourse] Requested courseId: ${courseId}, parsed: ${parsedCourseId}, user role: ${user.roleName}`);
+    console.log(`[getLecturesByCourse] Processing: courseId=${parsedCourseId}, user role=${user.roleName}`);
 
     const limit = parseInt((req.query.per_page as string) || '100'); // Increase default limit to show all lectures
     const skip = (parseInt((req.query.page as string) || '1') - 1) * limit;
@@ -731,6 +740,8 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
         : null
     }));
 
+    console.log(`[getLecturesByCourse] Success: Found ${lectures.length} lectures (total: ${total}) for courseId: ${parsedCourseId}`);
+    
     res.json({
       success: true,
       data: formattedLectures,
@@ -742,6 +753,11 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
       }
     });
   } catch (error) {
+    console.error('[getLecturesByCourse] Error:', {
+      courseId: req.params.courseId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     next(error);
   }
 };

@@ -14,6 +14,12 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
     } = req.query;
 
     const user = req.user!;
+    console.log('[getCourses] Request:', { 
+      query: req.query, 
+      userId: user.id, 
+      role: user.roleName 
+    });
+    
     const limit = parseInt(per_page as string);
     const skip = (parseInt(page as string) - 1) * limit;
 
@@ -124,6 +130,12 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
       updated_at: course.updatedAt
     }));
 
+    console.log('[getCourses] Success:', { 
+      count: formattedCourses.length, 
+      total, 
+      role: user.roleName 
+    });
+    
     res.json({
       success: true,
       data: formattedCourses,
@@ -135,6 +147,7 @@ export const getCourses = async (req: AuthRequest, res: Response, next: NextFunc
       }
     });
   } catch (error) {
+    console.error('[getCourses] Error:', error);
     next(error);
   }
 };
@@ -144,9 +157,12 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
     const { id } = req.params;
     const user = req.user!;
 
+    console.log('[getCourse] Request:', { courseId: id, userId: user.id, role: user.roleName });
+
     // Validate course ID
     const courseId = parseInt(id);
     if (isNaN(courseId) || courseId <= 0) {
+      console.error('[getCourse] Invalid course ID:', id);
       throw new AppError('Invalid course ID', 400);
     }
 
@@ -194,11 +210,13 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
     delete (formattedCourse as any).createdAt;
     delete (formattedCourse as any).updatedAt;
 
+    console.log('[getCourse] Success:', { courseId, courseTitle: formattedCourse.title });
     res.json({
       success: true,
       data: formattedCourse
     });
   } catch (error) {
+    console.error('[getCourse] Error:', error);
     next(error);
   }
 };

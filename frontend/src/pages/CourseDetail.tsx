@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import CourseForm, { CourseFormData } from '../components/forms/CourseForm'
 import ScheduleForm, { ScheduleFormData } from '../components/forms/ScheduleForm'
 import Modal from '../components/Modal'
 import { useSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule, Schedule } from '../hooks/useSchedules'
+import { useDeleteCourse } from '../hooks/useCourses'
 import { useAuthStore } from '../store/authStore'
 
 export default function CourseDetail() {
   const { user } = useAuthStore()
   const { id } = useParams()
   const courseId = id ? parseInt(id) : 0
+  const navigate = useNavigate()
   const [course, setCourse] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -21,6 +23,7 @@ export default function CourseDetail() {
   const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
   const isTeacher = user?.roleName === 'teacher'
 
+  const deleteCourseMutation = useDeleteCourse()
   const { data: schedulesData, isLoading: schedulesLoading } = useSchedules(courseId)
   const createScheduleMutation = useCreateSchedule()
   const updateScheduleMutation = useUpdateSchedule()
@@ -117,6 +120,21 @@ export default function CourseDetail() {
     setEditingSchedule(null)
   }
 
+  const handleDeleteCourse = async () => {
+    if (!courseId) return
+    const confirmed = window.confirm(
+      'Are you sure you want to permanently delete this course and all related schedules, enrollments, and data? This action cannot be undone.'
+    )
+    if (!confirmed) return
+
+    try {
+      await deleteCourseMutation.mutateAsync(courseId)
+      navigate('/courses')
+    } catch (error) {
+      console.error('Failed to delete course:', error)
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-12">Loading...</div>
   }
@@ -134,12 +152,23 @@ export default function CourseDetail() {
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-900">{course.title}</h1>
           {!isTeacher && (
-            <button 
-              className="btn btn-primary"
-              onClick={() => setIsEditModalOpen(true)}
-            >
-              Edit Course
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                className="btn btn-primary"
+                onClick={() => setIsEditModalOpen(true)}
+              >
+                Edit Course
+              </button>
+              {isAdmin && (
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDeleteCourse}
+                  disabled={deleteCourseMutation.isPending}
+                >
+                  {deleteCourseMutation.isPending ? 'Deleting...' : 'Delete Course'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

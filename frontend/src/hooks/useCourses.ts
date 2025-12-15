@@ -120,9 +120,10 @@ export function useDeleteCourse() {
       const response = await api.delete(`/courses/${id}`)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['courses'] })
-      toast.success('Course archived successfully')
+      queryClient.invalidateQueries({ queryKey: ['course', id] })
+      toast.success('Course deleted permanently')
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to delete course')

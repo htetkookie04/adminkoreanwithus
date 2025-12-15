@@ -382,11 +382,79 @@ export const updateCourse = async (req: AuthRequest, res: Response, next: NextFu
 export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const courseId = parseInt(id);
 
-    // Soft delete (set active to false)
-    const course = await prisma.course.update({
-      where: { id: parseInt(id) },
-      data: { active: false }
+    if (isNaN(courseId) || courseId <= 0) {
+      throw new AppError('Invalid course ID', 400);
+    }
+
+    // Permanently delete course and related data
+    await prisma.$transaction(async (tx) => {
+      // Remove payments tied to enrollments for this course
+      await tx.payment.deleteMany({
+        where: {
+          enrollment: {
+            courseId: courseId
+          }
+        }
+      });
+
+      // Remove enrollments referencing the course (and its schedules)
+      await tx.enrollment.deleteMany({
+        where: {
+          OR: [
+            { courseId: courseId },
+            {
+              schedule: {
+                courseId: courseId
+              }
+            }
+          ]
+        }
+      });
+
+      // Remove feedback linked to the course or its schedules
+      await tx.feedback.deleteMany({
+        where: {
+          OR: [
+            { courseId: courseId },
+            {
+              schedule: {
+                courseId: courseId
+              }
+            }
+          ]
+        }
+      });
+
+      // Remove waitlist entries
+      await tx.waitlist.deleteMany({
+        where: {
+          courseId: courseId
+        }
+      });
+
+      // Remove course media mappings
+      await tx.courseMedia.deleteMany({
+        where: {
+          courseId: courseId
+        }
+      });
+
+      // Remove lectures
+      await tx.lecture.deleteMany({
+        where: { courseId: courseId }
+      });
+
+      // Remove schedules
+      await tx.schedule.deleteMany({
+        where: { courseId: courseId }
+      });
+
+      // Finally delete the course
+      await tx.course.delete({
+        where: { id: courseId }
+      });
     });
 
     // Log activity
@@ -396,14 +464,15 @@ export const deleteCourse = async (req: AuthRequest, res: Response, next: NextFu
           userId: req.user.id,
           action: 'course.deleted',
           resourceType: 'course',
-          resourceId: parseInt(id)
+          resourceId: courseId,
+          meta: { permanent: true }
         }
       });
     }
 
     res.json({
       success: true,
-      message: 'Course archived successfully'
+      message: 'Course deleted permanently'
     });
   } catch (error: any) {
     if (error.code === 'P2025') {

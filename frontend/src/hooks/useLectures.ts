@@ -157,17 +157,68 @@ export function useUpdateLecture() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<Omit<LectureFormData, 'video'>> }) => {
-      const response = await api.put(`/lectures/${id}`, data)
-      return response.data
+    mutationFn: async ({ id, data }: { id: number; data: Partial<LectureFormData> }) => {
+      // Check if we have files to upload - if so, use FormData
+      const hasFiles = (data.video && data.video instanceof File) || (data.pdf && data.pdf instanceof File)
+      
+      if (hasFiles) {
+        // Use FormData for file uploads
+        const formData = new FormData()
+        if (data.course_id !== undefined) {
+          formData.append('course_id', data.course_id.toString())
+        }
+        if (data.title !== undefined) {
+          formData.append('title', data.title)
+        }
+        if (data.description !== undefined) {
+          formData.append('description', data.description)
+        }
+        // Check if video is a File instance before appending
+        if (data.video && data.video instanceof File) {
+          formData.append('video', data.video)
+        }
+        // Check if pdf is a File instance before appending
+        if (data.pdf && data.pdf instanceof File) {
+          formData.append('pdf', data.pdf)
+        }
+        // Add resource link URL if provided (always append, even if empty, so backend knows it was provided)
+        if (data.resource_link_url !== undefined) {
+          const trimmedResourceLink = data.resource_link_url?.trim() || ''
+          formData.append('resource_link_url', trimmedResourceLink)
+          // Also append as resourceLink for compatibility (temporary)
+          formData.append('resourceLink', trimmedResourceLink)
+        }
+
+        // Don't set Content-Type manually - axios will set it with the correct boundary
+        const response = await api.put(`/lectures/${id}`, formData)
+        return response.data
+      } else {
+        // Use JSON for non-file updates
+        const jsonData: any = {}
+        if (data.course_id !== undefined) jsonData.course_id = data.course_id
+        if (data.title !== undefined) jsonData.title = data.title
+        if (data.description !== undefined) jsonData.description = data.description
+        if (data.resource_link_url !== undefined) {
+          jsonData.resource_link_url = data.resource_link_url.trim() || null
+        }
+        
+        const response = await api.put(`/lectures/${id}`, jsonData)
+        return response.data
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['lectures'] })
       queryClient.invalidateQueries({ queryKey: ['lecture', variables.id] })
+      queryClient.invalidateQueries({ queryKey: ['courses'] })
+      queryClient.invalidateQueries({ queryKey: ['courses', 'with-lectures'] })
       toast.success('Lecture updated successfully')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update lecture')
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to update lecture'
+      toast.error(errorMessage)
     }
   })
 }

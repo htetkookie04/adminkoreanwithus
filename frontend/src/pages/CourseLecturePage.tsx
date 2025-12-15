@@ -62,6 +62,8 @@ export default function CourseLecturePage() {
             course_id: courseIdNum,
             title: formData.title,
             description: formData.description,
+            video: formData.video,
+            pdf: formData.pdf,
             resource_link_url: formData.resource_link_url
           }
         })

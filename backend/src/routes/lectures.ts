@@ -51,6 +51,7 @@ lecturesRouter.post(
 lecturesRouter.put(
   '/:id',
   requireRole('admin', 'super_admin', 'teacher'),
+  handleMulterError,
   updateLecture
 );
 

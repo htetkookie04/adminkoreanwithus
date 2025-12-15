@@ -491,22 +491,30 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
 // PUT /lectures/:id - Update lecture (admin/teacher only)
 export const updateLecture = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    // Debug logging
+    console.log('[updateLecture] Request body:', req.body);
+    console.log('[updateLecture] Request files:', req.files);
+    
     const { id } = req.params;
     const user = req.user!;
 
-    // Get resource link URL from request body (check multiple possible field names)
-    const resourceLinkUrlFromBody = (req.body.resource_link_url?.trim() || 
-                                     req.body.resourceLink?.trim() || 
-                                     req.body.resource_url?.trim() || 
-                                     null);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const videoFile = files?.video?.[0];
+    const pdfFile = files?.pdf?.[0];
 
-    // Validate request body
-    const validatedData = updateLectureSchema.parse({
-      course_id: req.body.course_id ? parseInt(req.body.course_id) : undefined,
-      title: req.body.title,
-      description: req.body.description,
-      resource_link_url: resourceLinkUrlFromBody || null
-    });
+    // Get resource link URL from request body (check multiple possible field names)
+    // Handle both FormData (string) and JSON (string or null) formats
+    let resourceLinkUrlFromBody: string | null = null;
+    if (req.body.resource_link_url !== undefined) {
+      const value = req.body.resource_link_url?.trim() || '';
+      resourceLinkUrlFromBody = value.length > 0 ? value : null;
+    } else if (req.body.resourceLink !== undefined) {
+      const value = req.body.resourceLink?.trim() || '';
+      resourceLinkUrlFromBody = value.length > 0 ? value : null;
+    } else if (req.body.resource_url !== undefined) {
+      const value = req.body.resource_url?.trim() || '';
+      resourceLinkUrlFromBody = value.length > 0 ? value : null;
+    }
 
     // Check if lecture exists and get current data
     const currentLecture = await prisma.lecture.findUnique({
@@ -522,6 +530,38 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
       throw new AppError('Access denied', 403);
     }
 
+    // Parse course_id - handle string, number, or undefined
+    let courseId: number | undefined;
+    if (req.body.course_id !== undefined && req.body.course_id !== null && req.body.course_id !== '') {
+      const parsed = parseInt(String(req.body.course_id));
+      if (!isNaN(parsed)) {
+        courseId = parsed;
+      }
+    }
+    
+    // Parse title - ensure it's a string
+    const title = req.body.title ? String(req.body.title).trim() : undefined;
+    
+    // Parse description - handle empty strings
+    const description = req.body.description !== undefined
+      ? (req.body.description && req.body.description.trim() !== '' 
+          ? req.body.description.trim() 
+          : null)
+      : undefined;
+
+    // Validate request body - only include resource_link_url if it was provided
+    const validationInput: any = {
+      course_id: courseId,
+      title: title,
+      description: description
+    };
+    // Only include resource_link_url in validation if it was explicitly provided
+    if (req.body.resource_link_url !== undefined || req.body.resourceLink !== undefined || req.body.resource_url !== undefined) {
+      validationInput.resource_link_url = resourceLinkUrlFromBody;
+    }
+    
+    const validatedData = updateLectureSchema.parse(validationInput);
+
     // Verify course exists if changing
     if (validatedData.course_id && validatedData.course_id !== currentLecture.courseId) {
       const course = await prisma.course.findUnique({
@@ -532,13 +572,77 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
       }
     }
 
+    // Check if at least one content source exists (current or new)
+    const hasVideoContent = !!videoFile;
+    const hasPdfContent = !!pdfFile;
+    const resourceLinkWasProvided = req.body.resource_link_url !== undefined || req.body.resourceLink !== undefined || req.body.resource_url !== undefined;
+    const hasResourceLink = resourceLinkWasProvided && !!resourceLinkUrlFromBody;
+    const hasCurrentVideo = !!currentLecture.videoUrl;
+    const hasCurrentPdf = !!currentLecture.pdfUrl;
+    const hasCurrentResourceLink = !!(currentLecture as any).resourceLinkUrl;
+    
+    // If updating, check if at least one content source will exist after update
+    const willHaveVideo = hasVideoContent || (!videoFile && hasCurrentVideo);
+    const willHavePdf = hasPdfContent || (!pdfFile && hasCurrentPdf);
+    // For resource link: if provided, use new value; if not provided, keep current
+    const willHaveResourceLink = resourceLinkWasProvided 
+      ? !!resourceLinkUrlFromBody 
+      : hasCurrentResourceLink;
+    
+    // Validate that at least one content source will exist
+    if (!willHaveVideo && !willHavePdf && !willHaveResourceLink) {
+      throw new AppError('At least one content source (video file, PDF file, or Resource Link URL) must be provided', 400);
+    }
+
+    // Validate file sizes
+    if (videoFile && videoFile.size > 500 * 1024 * 1024) {
+      throw new AppError('Video file size exceeds the maximum limit of 500MB', 400);
+    }
+    if (pdfFile && pdfFile.size > 50 * 1024 * 1024) {
+      throw new AppError('PDF file size exceeds the maximum limit of 50MB', 400);
+    }
+
     // Build update data
     const updateData: any = {};
 
     if (validatedData.title !== undefined) updateData.title = validatedData.title;
     if (validatedData.description !== undefined) updateData.description = validatedData.description;
     if (validatedData.course_id !== undefined) updateData.courseId = validatedData.course_id;
-    if (validatedData.resource_link_url !== undefined) updateData.resourceLinkUrl = validatedData.resource_link_url;
+    // Only update resource_link_url if it was explicitly provided in the request
+    if (resourceLinkWasProvided && validatedData.resource_link_url !== undefined) {
+      updateData.resourceLinkUrl = validatedData.resource_link_url;
+    }
+
+    // Handle file uploads - delete old files if new ones are uploaded
+    if (videoFile) {
+      // Delete old video file if it exists
+      if (currentLecture.videoUrl) {
+        const oldVideoPath = path.join(__dirname, '../../', currentLecture.videoUrl);
+        if (fs.existsSync(oldVideoPath)) {
+          try {
+            fs.unlinkSync(oldVideoPath);
+          } catch (err) {
+            console.error('Error deleting old video file:', err);
+          }
+        }
+      }
+      updateData.videoUrl = `/uploads/videos/${videoFile.filename}`;
+    }
+
+    if (pdfFile) {
+      // Delete old PDF file if it exists
+      if (currentLecture.pdfUrl) {
+        const oldPdfPath = path.join(__dirname, '../../', currentLecture.pdfUrl);
+        if (fs.existsSync(oldPdfPath)) {
+          try {
+            fs.unlinkSync(oldPdfPath);
+          } catch (err) {
+            console.error('Error deleting old PDF file:', err);
+          }
+        }
+      }
+      updateData.pdfUrl = `/uploads/pdfs/${pdfFile.filename}`;
+    }
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError('No fields to update', 400);

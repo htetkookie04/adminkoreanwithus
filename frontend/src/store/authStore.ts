@@ -30,16 +30,36 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       login: async (email: string, password: string) => {
-        const response = await api.post('/auth/login', { email, password })
-        const { user, accessToken, refreshToken } = response.data.data
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true
-        })
-        // Set default auth header
-        api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+        // Create AbortController for timeout handling
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
+        try {
+          const response = await api.post('/auth/login', 
+            { email, password },
+            { signal: controller.signal }
+          )
+          const { user, accessToken, refreshToken } = response.data.data
+          set({
+            user,
+            accessToken,
+            refreshToken,
+            isAuthenticated: true
+          })
+          // Set default auth header
+          api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+        } catch (error: any) {
+          // Handle timeout or network errors
+          if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+            throw new Error('Request timeout. Please check your connection and try again.')
+          }
+          if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
+            throw new Error('Network error. Please check if the server is running and CORS is configured correctly.')
+          }
+          throw error
+        } finally {
+          clearTimeout(timeoutId)
+        }
       },
       logout: () => {
         set({

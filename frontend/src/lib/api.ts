@@ -7,7 +7,9 @@ export const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  timeout: 30000, // 30 seconds timeout
+  withCredentials: true // Important for CORS with credentials
 })
 
 // Request interceptor to add auth token

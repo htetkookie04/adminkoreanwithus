@@ -27,7 +27,16 @@ export default function Login() {
         navigate('/')
       }
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Login failed')
+      // Handle different error types
+      if (err.message) {
+        setError(err.message)
+      } else if (err.response?.data?.error?.message) {
+        setError(err.response.data.error.message)
+      } else if (err.response?.data?.message) {
+        setError(err.response.data.message)
+      } else {
+        setError('Login failed. Please check your connection and try again.')
+      }
     } finally {
       setLoading(false)
     }

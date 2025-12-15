@@ -21,9 +21,21 @@ export default function LectureResourceViewer({
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-  // Helper to construct full URL
+  // Helper to construct full URL - handle both absolute and relative paths
   const getFullUrl = (url: string) => {
-    return url.startsWith('http') ? url : `${API_URL}${url}`
+    // If it's already a full URL, return as-is
+    if (url.startsWith('http')) {
+      return url;
+    }
+    
+    // If it's an absolute path (starts with /), serve from API_URL
+    // to avoid using the frontend origin (e.g. Vite dev server)
+    if (url.startsWith('/')) {
+      return `${API_URL}${url}`;
+    }
+    
+    // For relative paths, prepend API_URL
+    return `${API_URL}/${url}`;
   }
 
   // Check if any resource exists

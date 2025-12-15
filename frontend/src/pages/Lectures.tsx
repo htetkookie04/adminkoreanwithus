@@ -7,6 +7,10 @@ export default function Lectures() {
   const courses = data?.data || []
 
   const handleCourseClick = (courseId: number) => {
+    if (!courseId || courseId <= 0) {
+      console.error('Invalid course ID:', courseId)
+      return
+    }
     navigate(`/lectures/${courseId}`)
   }
 

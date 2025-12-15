@@ -37,10 +37,32 @@ export function useCourse(id: number) {
   return useQuery({
     queryKey: ['course', id],
     queryFn: async () => {
-      const response = await api.get(`/courses/${id}`)
-      return response.data
+      if (!id || id <= 0 || isNaN(id)) {
+        throw new Error('Invalid course ID')
+      }
+      try {
+        const response = await api.get(`/courses/${id}`)
+        return response.data
+      } catch (error: any) {
+        console.error('Error fetching course:', error)
+        // Re-throw with more context
+        if (error.response?.status === 403) {
+          throw new Error('Access denied. You do not have permission to view this course.')
+        } else if (error.response?.status === 404) {
+          throw new Error('Course not found.')
+        }
+        throw error
+      }
     },
-    enabled: !!id
+    enabled: !!id && id > 0 && !isNaN(id),
+    retry: (failureCount, error: any) => {
+      // Don't retry on 403 (permission denied) or 404 (not found) errors
+      if (error?.response?.status === 403 || error?.response?.status === 404) {
+        return false
+      }
+      return failureCount < 1
+    },
+    staleTime: 30000 // Cache for 30 seconds
   })
 }
 

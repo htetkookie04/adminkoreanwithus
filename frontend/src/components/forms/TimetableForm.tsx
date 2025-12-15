@@ -183,7 +183,7 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
               const fullName = getTeacherFullName(teacher)
               return (
                 <option key={teacher.id} value={fullName}>
-                  {fullName}
+                  {fullName} ({teacher.email})
                 </option>
               )
             })}

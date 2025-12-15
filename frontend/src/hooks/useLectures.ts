@@ -62,13 +62,37 @@ export function useLecturesByCourse(courseId: number) {
   return useQuery({
     queryKey: ['lectures', 'course', courseId],
     queryFn: async () => {
-      console.log('Fetching lectures for courseId:', courseId)
-      const response = await api.get(`/lectures/course/${courseId}`)
-      console.log('Lectures API response:', response.data)
-      // Handle both response.data.data and response.data structures
-      return response.data
+      if (!courseId || courseId <= 0 || isNaN(courseId)) {
+        throw new Error('Invalid course ID')
+      }
+      try {
+        console.log('Fetching lectures for courseId:', courseId)
+        const response = await api.get(`/lectures/course/${courseId}`)
+        console.log('Lectures API response:', response.data)
+        // Handle both response.data.data and response.data structures
+        return response.data
+      } catch (error: any) {
+        console.error('Error fetching lectures:', error)
+        // Re-throw with more context
+        if (error.response?.status === 403) {
+          throw new Error('Access denied. You are not enrolled in this course.')
+        } else if (error.response?.status === 404) {
+          throw new Error('Course not found.')
+        } else if (error.response?.status === 400) {
+          throw new Error(error.response?.data?.message || 'Invalid course ID.')
+        }
+        throw error
+      }
     },
-    enabled: !!courseId && courseId > 0
+    enabled: !!courseId && courseId > 0 && !isNaN(courseId),
+    retry: (failureCount, error: any) => {
+      // Don't retry on 403 (permission denied) or 404 (not found) errors
+      if (error?.response?.status === 403 || error?.response?.status === 404) {
+        return false
+      }
+      return failureCount < 1
+    },
+    staleTime: 30000 // Cache for 30 seconds
   })
 }
 

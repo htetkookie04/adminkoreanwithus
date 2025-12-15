@@ -4,7 +4,7 @@ import { api } from '../lib/api'
 import CourseForm, { CourseFormData } from '../components/forms/CourseForm'
 import ScheduleForm, { ScheduleFormData } from '../components/forms/ScheduleForm'
 import Modal from '../components/Modal'
-import { useSchedules, useCreateSchedule } from '../hooks/useSchedules'
+import { useSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule, Schedule } from '../hooks/useSchedules'
 import { useAuthStore } from '../store/authStore'
 
 export default function CourseDetail() {
@@ -16,12 +16,15 @@ export default function CourseDetail() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null)
 
   const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
   const isTeacher = user?.roleName === 'teacher'
 
   const { data: schedulesData, isLoading: schedulesLoading } = useSchedules(courseId)
   const createScheduleMutation = useCreateSchedule()
+  const updateScheduleMutation = useUpdateSchedule()
+  const deleteScheduleMutation = useDeleteSchedule()
   const schedules = schedulesData?.data || []
 
   useEffect(() => {
@@ -68,6 +71,50 @@ export default function CourseDetail() {
       console.error('Failed to create schedule:', error)
       // Error is already handled by the mutation's onError
     }
+  }
+
+  const handleUpdateSchedule = async (formData: ScheduleFormData) => {
+    if (!courseId || !editingSchedule) {
+      console.error('Course ID or Schedule ID is missing')
+      return
+    }
+    try {
+      await updateScheduleMutation.mutateAsync({
+        courseId,
+        scheduleId: editingSchedule.id,
+        data: formData
+      })
+      setIsScheduleModalOpen(false)
+      setEditingSchedule(null)
+    } catch (error) {
+      console.error('Failed to update schedule:', error)
+      // Error is already handled by the mutation's onError
+    }
+  }
+
+  const handleDeleteSchedule = async (scheduleId: number) => {
+    if (!courseId) {
+      console.error('Course ID is missing')
+      return
+    }
+    if (window.confirm('Are you sure you want to permanently delete this schedule? This action cannot be undone.')) {
+      try {
+        await deleteScheduleMutation.mutateAsync({ courseId, scheduleId })
+      } catch (error) {
+        console.error('Failed to delete schedule:', error)
+        // Error is already handled by the mutation's onError
+      }
+    }
+  }
+
+  const handleEditSchedule = (schedule: Schedule) => {
+    setEditingSchedule(schedule)
+    setIsScheduleModalOpen(true)
+  }
+
+  const handleCancelSchedule = () => {
+    setIsScheduleModalOpen(false)
+    setEditingSchedule(null)
   }
 
   if (loading) {
@@ -172,16 +219,29 @@ export default function CourseDetail() {
 
           <Modal
             isOpen={isScheduleModalOpen}
-            onClose={() => setIsScheduleModalOpen(false)}
-            title="Add New Schedule"
+            onClose={handleCancelSchedule}
+            title={editingSchedule ? "Edit Schedule" : "Add New Schedule"}
             size="md"
           >
             {courseId > 0 && (
               <ScheduleForm
                 courseId={courseId}
-                onSubmit={handleCreateSchedule}
-                onCancel={() => setIsScheduleModalOpen(false)}
-                isLoading={createScheduleMutation.isPending}
+                onSubmit={editingSchedule ? handleUpdateSchedule : handleCreateSchedule}
+                onCancel={handleCancelSchedule}
+                isLoading={createScheduleMutation.isPending || updateScheduleMutation.isPending}
+                initialData={editingSchedule ? {
+                  teacherId: editingSchedule.teacher_id,
+                  startTime: editingSchedule.start_time 
+                    ? new Date(editingSchedule.start_time).toISOString().slice(0, 16)
+                    : '',
+                  endTime: editingSchedule.end_time 
+                    ? new Date(editingSchedule.end_time).toISOString().slice(0, 16)
+                    : '',
+                  timezone: editingSchedule.timezone || 'Asia/Yangon',
+                  capacity: editingSchedule.capacity,
+                  location: editingSchedule.location || '',
+                  status: (editingSchedule.status as 'scheduled' | 'cancelled' | 'completed') || 'scheduled'
+                } : undefined}
               />
             )}
           </Modal>
@@ -194,27 +254,50 @@ export default function CourseDetail() {
             <div className="space-y-3">
               {schedules.map((schedule) => (
                 <div key={schedule.id} className="border border-gray-200 rounded-lg p-3">
-                  <p className="font-medium text-sm">
-                    {new Date(schedule.start_time).toLocaleString()} -{' '}
-                    {new Date(schedule.end_time).toLocaleString()}
-                  </p>
-                  {schedule.teacher_name && (
-                    <p className="text-xs text-gray-600 mt-1">Teacher: {schedule.teacher_name}</p>
-                  )}
-                  {schedule.location && (
-                    <p className="text-xs text-gray-600 mt-1">Location: {schedule.location}</p>
-                  )}
-                  <span
-                    className={`inline-block mt-2 px-2 py-1 text-xs font-medium rounded ${
-                      schedule.status === 'scheduled'
-                        ? 'bg-blue-100 text-blue-800'
-                        : schedule.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {schedule.status}
-                  </span>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">
+                        {new Date(schedule.start_time).toLocaleString()} -{' '}
+                        {new Date(schedule.end_time).toLocaleString()}
+                      </p>
+                      {schedule.teacher_name && (
+                        <p className="text-xs text-gray-600 mt-1">Teacher: {schedule.teacher_name}</p>
+                      )}
+                      {schedule.location && (
+                        <p className="text-xs text-gray-600 mt-1">Location: {schedule.location}</p>
+                      )}
+                      <span
+                        className={`inline-block mt-2 px-2 py-1 text-xs font-medium rounded ${
+                          schedule.status === 'scheduled'
+                            ? 'bg-blue-100 text-blue-800'
+                            : schedule.status === 'completed'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {schedule.status}
+                      </span>
+                    </div>
+                    {!isTeacher && (
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditSchedule(schedule)}
+                          className="btn btn-secondary btn-sm"
+                          title="Edit Schedule"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSchedule(schedule.id)}
+                          className="btn btn-danger btn-sm"
+                          title="Delete Schedule"
+                          disabled={deleteScheduleMutation.isPending}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

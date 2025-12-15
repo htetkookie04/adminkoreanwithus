@@ -8,6 +8,8 @@ import {
   deleteCourse,
   getCourseSchedules,
   createSchedule,
+  updateSchedule,
+  deleteSchedule,
   getCoursesWithLectures
 } from '../controllers/coursesController';
 import { getLecturesByCourse } from '../controllers/lecturesController';
@@ -24,6 +26,8 @@ coursesRouter.put('/:id', requirePermission('courses', 'update'), updateCourse);
 coursesRouter.delete('/:id', requirePermission('courses', 'delete'), deleteCourse);
 coursesRouter.get('/:id/schedules', requirePermission('courses', 'view'), getCourseSchedules);
 coursesRouter.post('/:id/schedules', requirePermission('courses', 'create'), createSchedule);
+coursesRouter.put('/:id/schedules/:scheduleId', requirePermission('courses', 'update'), updateSchedule);
+coursesRouter.delete('/:id/schedules/:scheduleId', requirePermission('courses', 'delete'), deleteSchedule);
 // GET /courses/:courseId/lectures - Get lectures for a course
 coursesRouter.get('/:courseId/lectures', requirePermission('courses', 'view'), getLecturesByCourse);
 

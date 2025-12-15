@@ -203,7 +203,7 @@ export default function ScheduleForm({ courseId, onSubmit, onCancel, isLoading, 
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={isLoading}>
-          {isLoading ? 'Creating...' : 'Create Schedule'}
+          {isLoading ? (initialData ? 'Updating...' : 'Creating...') : (initialData ? 'Update Schedule' : 'Create Schedule')}
         </button>
       </div>
     </form>

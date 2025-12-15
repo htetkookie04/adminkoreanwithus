@@ -18,6 +18,8 @@ export default function CourseLecturePage() {
   const { user } = useAuthStore()
 
   const courseIdNum = courseId ? parseInt(courseId) : 0
+  const isValidCourseId = courseIdNum > 0 && !isNaN(courseIdNum)
+  
   const { data: courseData, isLoading: courseLoading, error: courseError } = useCourse(courseIdNum)
   const { data: lecturesData, isLoading: lecturesLoading, error: lecturesError } = useLecturesByCourse(courseIdNum)
   const createLectureMutation = useCreateLecture()
@@ -111,6 +113,18 @@ export default function CourseLecturePage() {
     }
   }, [isModalOpen])
 
+  // Check for invalid course ID first
+  if (!isValidCourseId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">Invalid course ID.</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/lectures')}>
+          Back to Courses
+        </button>
+      </div>
+    )
+  }
+
   if (courseLoading || lecturesLoading) {
     return (
       <div className="text-center py-12">
@@ -121,9 +135,15 @@ export default function CourseLecturePage() {
   }
 
   if (courseError || lecturesError) {
+    const errorMessage = courseError?.message || lecturesError?.message || 
+                        (courseError as any)?.response?.data?.message || 
+                        (lecturesError as any)?.response?.data?.message ||
+                        'Error loading course or lectures.'
+    
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">Error loading course or lectures.</p>
+        <p className="text-red-500 mb-2">Error loading course or lectures.</p>
+        <p className="text-gray-500 text-sm mb-4">{errorMessage}</p>
         <button className="btn btn-secondary" onClick={() => navigate('/lectures')}>
           Back to Courses
         </button>

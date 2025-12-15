@@ -144,8 +144,14 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
     const { id } = req.params;
     const user = req.user!;
 
+    // Validate course ID
+    const courseId = parseInt(id);
+    if (isNaN(courseId) || courseId <= 0) {
+      throw new AppError('Invalid course ID', 400);
+    }
+
     const course = await prisma.course.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: courseId },
       include: {
         creator: {
           select: {
@@ -165,7 +171,7 @@ export const getCourse = async (req: AuthRequest, res: Response, next: NextFunct
       const enrollment = await prisma.enrollment.findFirst({
         where: {
           userId: user.id,
-          courseId: parseInt(id),
+          courseId: courseId,
           status: { in: ['approved', 'active'] }
         }
       });
@@ -490,6 +496,128 @@ export const createSchedule = async (req: AuthRequest, res: Response, next: Next
     res.status(201).json({
       success: true,
       data: formattedSchedule
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /courses/:id/schedules/:scheduleId - Update schedule
+export const updateSchedule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id, scheduleId } = req.params;
+    const { teacherId, startTime, endTime, timezone, capacity, location, status } = req.body;
+
+    // Check if schedule exists
+    const existingSchedule = await prisma.schedule.findUnique({
+      where: { id: parseInt(scheduleId) }
+    });
+
+    if (!existingSchedule) {
+      throw new AppError('Schedule not found', 404);
+    }
+
+    // Verify schedule belongs to the course
+    if (existingSchedule.courseId !== parseInt(id)) {
+      throw new AppError('Schedule does not belong to this course', 400);
+    }
+
+    // Validate dates if provided
+    if (startTime && endTime) {
+      if (new Date(endTime) <= new Date(startTime)) {
+        throw new AppError('End time must be after start time', 400);
+      }
+    }
+
+    // Update schedule
+    const schedule = await prisma.schedule.update({
+      where: { id: parseInt(scheduleId) },
+      data: {
+        teacherId: teacherId !== undefined ? (teacherId || null) : undefined,
+        startTime: startTime ? new Date(startTime) : undefined,
+        endTime: endTime ? new Date(endTime) : undefined,
+        timezone: timezone || undefined,
+        capacity: capacity !== undefined ? (capacity || null) : undefined,
+        location: location !== undefined ? (location || null) : undefined,
+        status: status || undefined
+      }
+    });
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'schedule.updated',
+          resourceType: 'schedule',
+          resourceId: schedule.id
+        }
+      });
+    }
+
+    // Format response
+    const formattedSchedule = {
+      id: schedule.id,
+      course_id: schedule.courseId,
+      teacher_id: schedule.teacherId,
+      start_time: schedule.startTime,
+      end_time: schedule.endTime,
+      timezone: schedule.timezone,
+      capacity: schedule.capacity,
+      location: schedule.location,
+      status: schedule.status,
+      created_at: schedule.createdAt,
+      updated_at: schedule.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: formattedSchedule
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// DELETE /courses/:id/schedules/:scheduleId - Delete schedule
+export const deleteSchedule = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id, scheduleId } = req.params;
+
+    // Check if schedule exists
+    const existingSchedule = await prisma.schedule.findUnique({
+      where: { id: parseInt(scheduleId) }
+    });
+
+    if (!existingSchedule) {
+      throw new AppError('Schedule not found', 404);
+    }
+
+    // Verify schedule belongs to the course
+    if (existingSchedule.courseId !== parseInt(id)) {
+      throw new AppError('Schedule does not belong to this course', 400);
+    }
+
+    // Delete schedule
+    await prisma.schedule.delete({
+      where: { id: parseInt(scheduleId) }
+    });
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'schedule.deleted',
+          resourceType: 'schedule',
+          resourceId: parseInt(scheduleId)
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Schedule deleted successfully'
     });
   } catch (error) {
     next(error);

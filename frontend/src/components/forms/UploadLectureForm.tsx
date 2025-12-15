@@ -21,7 +21,19 @@ const createLectureSchema = z.object({
       'Only PDF files are allowed'
     ),
   resource_link_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    (val) => {
+      if (!val || val.trim() === '') return true
+      const trimmed = val.trim()
+      // More lenient URL validation - accept any string that looks like a URL
+      // This allows Google Drive folder links and other valid URLs
+      try {
+        new URL(trimmed)
+        return true
+      } catch {
+        // Also accept strings that start with http:// or https://
+        return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+      }
+    },
     'Invalid resource link URL format'
     )
 }).refine(
@@ -59,7 +71,19 @@ const updateLectureSchema = z.object({
       'Only PDF files are allowed'
     ),
   resource_link_url: z.string().optional().refine(
-    (val) => !val || val.trim() === '' || z.string().url().safeParse(val.trim()).success,
+    (val) => {
+      if (!val || val.trim() === '') return true
+      const trimmed = val.trim()
+      // More lenient URL validation - accept any string that looks like a URL
+      // This allows Google Drive folder links and other valid URLs
+      try {
+        new URL(trimmed)
+        return true
+      } catch {
+        // Also accept strings that start with http:// or https://
+        return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+      }
+    },
     'Invalid resource link URL format'
     )
 })
@@ -101,6 +125,7 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
 
   const selectedVideo = watch('video')
   const selectedPdf = watch('pdf')
+  const resourceLinkUrl = watch('resource_link_url')
 
   useEffect(() => {
     if (initialData) {
@@ -291,7 +316,7 @@ export default function UploadLectureForm({ onSubmit, onCancel, isLoading, initi
       </div>
 
       {/* Show error if neither video nor PDF is provided (for create mode only) */}
-      {!isEditMode && !selectedVideo && !selectedPdf && !watch('resource_link_url') && errors.video && (
+      {!isEditMode && !selectedVideo && !selectedPdf && !(resourceLinkUrl && resourceLinkUrl.trim().length > 0) && errors.video && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
           <p className="text-sm">{String(errors.video.message) || 'At least one content source (video file, PDF file, or Resource Link URL) must be provided'}</p>
         </div>

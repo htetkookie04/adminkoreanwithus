@@ -16,7 +16,22 @@ export const createLectureSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? null : val),
     z.union([
       z.null(),
-      z.string().url('Invalid resource link URL format')
+      z.string().refine(
+        (val) => {
+          if (!val || val.trim() === '') return true
+          const trimmed = val.trim()
+          // More lenient URL validation - accept any string that looks like a URL
+          // This allows Google Drive folder links and other valid URLs
+          try {
+            new URL(trimmed)
+            return true
+          } catch {
+            // Also accept strings that start with http:// or https://
+            return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+          }
+        },
+        { message: 'Invalid resource link URL format' }
+      )
     ]).optional()
   ),
 });
@@ -29,7 +44,22 @@ export const updateLectureSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? null : val),
     z.union([
       z.null(),
-      z.string().url('Invalid resource link URL format')
+      z.string().refine(
+        (val) => {
+          if (!val || val.trim() === '') return true
+          const trimmed = val.trim()
+          // More lenient URL validation - accept any string that looks like a URL
+          // This allows Google Drive folder links and other valid URLs
+          try {
+            new URL(trimmed)
+            return true
+          } catch {
+            // Also accept strings that start with http:// or https://
+            return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+          }
+        },
+        { message: 'Invalid resource link URL format' }
+      )
     ]).optional()
   ),
 });
@@ -324,8 +354,11 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
     const videoFile = files?.video?.[0];
     const pdfFile = files?.pdf?.[0];
 
-    // Get resource link URL from request body
-    const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
+    // Get resource link URL from request body (check multiple possible field names)
+    const resourceLinkUrlFromBody = (req.body.resource_link_url?.trim() || 
+                                     req.body.resourceLink?.trim() || 
+                                     req.body.resource_url?.trim() || 
+                                     null);
 
     // Validate that at least one content source is provided (file or resource link)
     const hasVideoContent = !!videoFile;
@@ -444,8 +477,11 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
     const { id } = req.params;
     const user = req.user!;
 
-    // Get resource link URL from request body
-    const resourceLinkUrlFromBody = req.body.resource_link_url?.trim() || null;
+    // Get resource link URL from request body (check multiple possible field names)
+    const resourceLinkUrlFromBody = (req.body.resource_link_url?.trim() || 
+                                     req.body.resourceLink?.trim() || 
+                                     req.body.resource_url?.trim() || 
+                                     null);
 
     // Validate request body
     const validatedData = updateLectureSchema.parse({

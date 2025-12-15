@@ -92,20 +92,24 @@ export function useCreateLecture() {
         formData.append('pdf', data.pdf)
       }
       // Add resource link URL if provided
-      if (data.resource_link_url && data.resource_link_url.trim() !== '') {
-        formData.append('resource_link_url', data.resource_link_url.trim())
+      const trimmedResourceLink = data.resource_link_url?.trim() || ''
+      if (trimmedResourceLink.length > 0) {
+        formData.append('resource_link_url', trimmedResourceLink)
+        // Also append as resourceLink for compatibility (temporary)
+        formData.append('resourceLink', trimmedResourceLink)
       }
 
       // Validate that at least one content source is provided
       const hasVideoContent = formData.has('video')
       const hasPdfContent = formData.has('pdf')
-      const hasResourceLink = formData.has('resource_link_url')
+      const hasResourceLink = trimmedResourceLink.length > 0
       // If resource link is provided, video/PDF is optional
       if (!hasResourceLink && !hasVideoContent && !hasPdfContent) {
         throw new Error('At least one content source (video file, PDF file, or Resource Link URL) must be provided')
       }
 
       // Don't set Content-Type manually - axios will set it with the correct boundary
+      // The API interceptor will handle removing the default Content-Type for FormData
       const response = await api.post('/lectures', formData)
       return response.data
     },

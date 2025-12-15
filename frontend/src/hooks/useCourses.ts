@@ -119,7 +119,9 @@ export function useCoursesWithLectures() {
     queryFn: async () => {
       const response = await api.get('/courses/with-lectures')
       return response.data
-    }
+    },
+    retry: 1,
+    staleTime: 30000 // Cache for 30 seconds
   })
 }
 

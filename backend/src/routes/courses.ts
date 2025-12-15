@@ -10,6 +10,7 @@ import {
   createSchedule,
   getCoursesWithLectures
 } from '../controllers/coursesController';
+import { getLecturesByCourse } from '../controllers/lecturesController';
 
 export const coursesRouter = Router();
 
@@ -23,4 +24,6 @@ coursesRouter.put('/:id', requirePermission('courses', 'update'), updateCourse);
 coursesRouter.delete('/:id', requirePermission('courses', 'delete'), deleteCourse);
 coursesRouter.get('/:id/schedules', requirePermission('courses', 'view'), getCourseSchedules);
 coursesRouter.post('/:id/schedules', requirePermission('courses', 'create'), createSchedule);
+// GET /courses/:courseId/lectures - Get lectures for a course
+coursesRouter.get('/:courseId/lectures', requirePermission('courses', 'view'), getLecturesByCourse);
 

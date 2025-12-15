@@ -64,19 +64,36 @@ export const updateLectureSchema = z.object({
   ),
 });
 
-// Configure multer for video uploads
-const uploadDir = path.join(__dirname, '../../uploads/lectures');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Configure separate upload directories for videos and PDFs
+const videosDir = path.join(__dirname, '../../uploads/videos');
+const pdfsDir = path.join(__dirname, '../../uploads/pdfs');
+
+// Create directories if they don't exist
+if (!fs.existsSync(videosDir)) {
+  fs.mkdirSync(videosDir, { recursive: true });
+}
+if (!fs.existsSync(pdfsDir)) {
+  fs.mkdirSync(pdfsDir, { recursive: true });
 }
 
+// Storage configuration that routes files to appropriate folders
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir);
+    // Route based on fieldname
+    if (file.fieldname === 'video') {
+      cb(null, videosDir);
+    } else if (file.fieldname === 'pdf') {
+      cb(null, pdfsDir);
+    } else {
+      // Fallback to videos directory for backward compatibility
+      cb(null, videosDir);
+    }
   },
   filename: (req, file, cb) => {
+    // Generate unique filename with original extension
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    cb(null, `${uniqueSuffix}-${sanitizedName}`);
   }
 });
 
@@ -247,7 +264,7 @@ export const getLectures = async (req: AuthRequest, res: Response, next: NextFun
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
-      resource_link_url: lecture.resourceLinkUrl,
+      resource_link_url: (lecture as any).resourceLinkUrl || null,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -322,7 +339,7 @@ export const getLecture = async (req: AuthRequest, res: Response, next: NextFunc
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
-      resource_link_url: lecture.resourceLinkUrl,
+      resource_link_url: (lecture as any).resourceLinkUrl || null,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -415,9 +432,9 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       throw new AppError('Course not found', 404);
     }
 
-    // Construct URLs from uploaded files
-    const videoUrl = videoFile ? `/uploads/lectures/${videoFile.filename}` : null;
-    const pdfUrl = pdfFile ? `/uploads/lectures/${pdfFile.filename}` : null;
+    // Construct URLs from uploaded files (using new folder structure)
+    const videoUrl = videoFile ? `/uploads/videos/${videoFile.filename}` : null;
+    const pdfUrl = pdfFile ? `/uploads/pdfs/${pdfFile.filename}` : null;
 
     const lecture = await prisma.lecture.create({
       data: {
@@ -426,10 +443,10 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
         description: validatedData.description,
         videoUrl,
         pdfUrl,
-        resourceLinkUrl: validatedData.resource_link_url,
+        resourceLinkUrl: validatedData.resource_link_url || null,
         uploadedBy: user.id,
         roleOfUploader
-      }
+      } as any
     });
 
     // Log activity
@@ -450,7 +467,7 @@ export const createLecture = async (req: AuthRequest, res: Response, next: NextF
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
-      resource_link_url: lecture.resourceLinkUrl,
+      resource_link_url: (lecture as any).resourceLinkUrl || null,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -551,7 +568,7 @@ export const updateLecture = async (req: AuthRequest, res: Response, next: NextF
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
-      resource_link_url: lecture.resourceLinkUrl,
+      resource_link_url: (lecture as any).resourceLinkUrl || null,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,
@@ -694,8 +711,6 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
 
     console.log(`[getLecturesByCourse] Found ${lectures.length} lectures (total: ${total}) for courseId: ${parsedCourseId}`);
 
-    console.log(`[getLecturesByCourse] Found ${lectures.length} lectures (total: ${total}) for courseId: ${parsedCourseId}`);
-
     // Format response
     const formattedLectures = lectures.map(lecture => ({
       id: lecture.id,
@@ -704,7 +719,7 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
       description: lecture.description,
       video_url: lecture.videoUrl,
       pdf_url: lecture.pdfUrl,
-      resource_link_url: lecture.resourceLinkUrl,
+      resource_link_url: (lecture as any).resourceLinkUrl || null,
       uploaded_by: lecture.uploadedBy,
       role_of_uploader: lecture.roleOfUploader,
       created_at: lecture.createdAt,

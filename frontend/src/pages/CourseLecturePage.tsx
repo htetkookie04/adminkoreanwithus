@@ -5,9 +5,9 @@ import { useCourse } from '../hooks/useCourses'
 import Modal from '../components/Modal'
 import UploadLectureForm from '../components/forms/UploadLectureForm'
 import { useAuthStore } from '../store/authStore'
-import { format } from 'date-fns'
 import { toast } from '../components/Toast'
 import VideoPlayer from '../components/VideoPlayer'
+import LectureCard from '../components/LectureCard'
 
 export default function CourseLecturePage() {
   const { courseId } = useParams<{ courseId: string }>()
@@ -18,8 +18,8 @@ export default function CourseLecturePage() {
   const { user } = useAuthStore()
 
   const courseIdNum = courseId ? parseInt(courseId) : 0
-  const { data: courseData, isLoading: courseLoading } = useCourse(courseIdNum)
-  const { data: lecturesData, isLoading: lecturesLoading } = useLecturesByCourse(courseIdNum)
+  const { data: courseData, isLoading: courseLoading, error: courseError } = useCourse(courseIdNum)
+  const { data: lecturesData, isLoading: lecturesLoading, error: lecturesError } = useLecturesByCourse(courseIdNum)
   const createLectureMutation = useCreateLecture()
   const updateLectureMutation = useUpdateLecture()
   const deleteLectureMutation = useDeleteLecture()
@@ -59,7 +59,8 @@ export default function CourseLecturePage() {
           data: {
             course_id: courseIdNum,
             title: formData.title,
-            description: formData.description
+            description: formData.description,
+            resource_link_url: formData.resource_link_url
           }
         })
       } else {
@@ -115,6 +116,17 @@ export default function CourseLecturePage() {
       <div className="text-center py-12">
         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         <p className="text-gray-500 mt-4">Loading...</p>
+      </div>
+    )
+  }
+
+  if (courseError || lecturesError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">Error loading course or lectures.</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/lectures')}>
+          Back to Courses
+        </button>
       </div>
     )
   }
@@ -243,84 +255,17 @@ export default function CourseLecturePage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="divide-y divide-gray-200">
-            {lectures.map((lecture) => (
-              <div key={lecture.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{lecture.title}</h3>
-                    {lecture.description && (
-                      <p className="text-gray-600 mb-3">{lecture.description}</p>
-                    )}
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span>Uploaded: {format(new Date(lecture.created_at), 'MMM d, yyyy')}</span>
-                      {lecture.uploader_name && (
-                        <span>By: {lecture.uploader_name}</span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-3">
-                      {lecture.pdf_url && (
-                        <a
-                          href={lecture.pdf_url.startsWith('http') ? lecture.pdf_url : `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${lecture.pdf_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          className="inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                          Download PDF
-                        </a>
-                      )}
-                      {lecture.resource_link_url && (
-                        <a
-                          href={lecture.resource_link_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-primary-600 hover:text-primary-800"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                          </svg>
-                          Resource Link
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    {lecture.video_url && (
-                      <button
-                        onClick={() => handleWatch(lecture)}
-                        className="btn btn-primary"
-                      >
-                        Watch
-                      </button>
-                    )}
-                    {canUpload && (isAdmin || lecture.uploaded_by === user?.id) && (
-                      <>
-                        <button
-                          onClick={() => handleEdit(lecture)}
-                          className="btn btn-secondary"
-                        >
-                          Edit
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleDelete(lecture.id)}
-                            className="btn btn-danger"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="space-y-4">
+          {lectures.map((lecture) => (
+            <LectureCard
+              key={lecture.id}
+              lecture={lecture}
+              canEdit={canUpload && (isAdmin || lecture.uploaded_by === user?.id)}
+              onEdit={handleEdit}
+              onDelete={isAdmin ? handleDelete : undefined}
+              onWatch={handleWatch}
+            />
+          ))}
         </div>
       )}
     </div>

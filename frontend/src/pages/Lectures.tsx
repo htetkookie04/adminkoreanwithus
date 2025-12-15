@@ -3,7 +3,7 @@ import { useCoursesWithLectures, CourseWithLectures } from '../hooks/useCourses'
 
 export default function Lectures() {
   const navigate = useNavigate()
-  const { data, isLoading } = useCoursesWithLectures()
+  const { data, isLoading, error } = useCoursesWithLectures()
   const courses = data?.data || []
 
   const handleCourseClick = (courseId: number) => {
@@ -21,6 +21,11 @@ export default function Lectures() {
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           <p className="text-gray-500 mt-4">Loading courses...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow p-8">
+          <p className="text-red-500 text-lg mb-2">Error loading courses.</p>
+          <p className="text-gray-400">Please try again later.</p>
         </div>
       ) : courses.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow p-8">
@@ -62,7 +67,7 @@ export default function Lectures() {
 
                   <div className="flex items-center text-sm text-gray-600">
                     <span className="font-medium mr-2">Lectures:</span>
-                    <span>{course.lecture_count}</span>
+                    <span>{course.lecture_count ?? 0}</span>
                   </div>
                 </div>
 

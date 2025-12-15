@@ -110,13 +110,6 @@ export default function LectureResourceViewer({
               >
                 Open
               </a>
-              <a
-                href={getFullUrl(videoUrl)}
-                download
-                className="btn btn-outline btn-sm"
-              >
-                Download
-              </a>
             </div>
           </div>
           {showVideoModal && (

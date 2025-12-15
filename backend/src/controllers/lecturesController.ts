@@ -590,13 +590,21 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
 
     // For getLecturesByCourse, show all lectures for the course (all roles can see)
     // This is different from getLectures which filters by role
-    const limit = parseInt((req.query.per_page as string) || '20');
+    const parsedCourseId = parseInt(courseId);
+    
+    if (isNaN(parsedCourseId)) {
+      throw new AppError('Invalid course ID', 400);
+    }
+
+    console.log(`[getLecturesByCourse] Requested courseId: ${courseId}, parsed: ${parsedCourseId}, user role: ${user.roleName}`);
+
+    const limit = parseInt((req.query.per_page as string) || '100'); // Increase default limit to show all lectures
     const skip = (parseInt((req.query.page as string) || '1') - 1) * limit;
 
     const [lectures, total] = await Promise.all([
       prisma.lecture.findMany({
         where: {
-          courseId: parseInt(courseId)
+          courseId: parsedCourseId
         },
         include: {
           course: {
@@ -620,10 +628,14 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
       }),
       prisma.lecture.count({
         where: {
-          courseId: parseInt(courseId)
+          courseId: parsedCourseId
         }
       })
     ]);
+
+    console.log(`[getLecturesByCourse] Found ${lectures.length} lectures (total: ${total}) for courseId: ${parsedCourseId}`);
+
+    console.log(`[getLecturesByCourse] Found ${lectures.length} lectures (total: ${total}) for courseId: ${parsedCourseId}`);
 
     // Format response
     const formattedLectures = lectures.map(lecture => ({

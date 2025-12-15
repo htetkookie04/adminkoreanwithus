@@ -62,10 +62,13 @@ export function useLecturesByCourse(courseId: number) {
   return useQuery({
     queryKey: ['lectures', 'course', courseId],
     queryFn: async () => {
+      console.log('Fetching lectures for courseId:', courseId)
       const response = await api.get(`/lectures/course/${courseId}`)
+      console.log('Lectures API response:', response.data)
+      // Handle both response.data.data and response.data structures
       return response.data
     },
-    enabled: !!courseId
+    enabled: !!courseId && courseId > 0
   })
 }
 

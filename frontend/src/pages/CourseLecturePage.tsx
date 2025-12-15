@@ -25,7 +25,27 @@ export default function CourseLecturePage() {
   const deleteLectureMutation = useDeleteLecture()
 
   const course = courseData?.data
-  const lectures = lecturesData?.data || []
+  // Handle both response.data.data and response.data structures
+  const lectures = lecturesData?.data || lecturesData || []
+
+  // Debug logging
+  useEffect(() => {
+    if (courseId) {
+      console.log('[CourseLecturePage] Route courseId (string):', courseId)
+      console.log('[CourseLecturePage] Parsed courseIdNum (number):', courseIdNum)
+    }
+  }, [courseId, courseIdNum])
+
+  // Debug logging for lectures
+  useEffect(() => {
+    if (courseIdNum && lecturesData !== undefined) {
+      console.log('[CourseLecturePage] Lectures API response:', lecturesData)
+      console.log('[CourseLecturePage] Lectures array:', lectures)
+      console.log('[CourseLecturePage] Lectures count:', lectures.length)
+      console.log('[CourseLecturePage] Course ID from API:', course?.id)
+      console.log('[CourseLecturePage] Course ID match:', course?.id === courseIdNum)
+    }
+  }, [courseIdNum, lecturesData, lectures, course])
 
   const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
   const isTeacher = user?.roleName === 'teacher'

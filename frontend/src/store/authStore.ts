@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { api } from '../lib/api'
+import { queryClient } from '../lib/queryClient'
 
 interface User {
   id: number
@@ -40,14 +41,23 @@ export const useAuthStore = create<AuthState>()(
             { signal: controller.signal }
           )
           const { user, accessToken, refreshToken } = response.data.data
+          
+          // Clear any stale cache before setting new auth state
+          queryClient.clear()
+          
           set({
             user,
             accessToken,
             refreshToken,
             isAuthenticated: true
           })
+          
           // Set default auth header
           api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`
+          
+          // Invalidate all queries to ensure fresh data is fetched
+          // This ensures that when user navigates, they get the latest data
+          queryClient.invalidateQueries()
         } catch (error: any) {
           // Handle timeout or network errors
           if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
@@ -62,13 +72,25 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       logout: () => {
+        // Clear all React Query cache
+        queryClient.clear()
+        
+        // Clear auth state
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false
         })
+        
+        // Remove auth header
         delete api.defaults.headers.common['Authorization']
+        
+        // Clear localStorage for auth (persist middleware will handle this, but we ensure it's cleared)
+        localStorage.removeItem('auth-storage')
+        
+        // Force page reload to ensure all state is reset
+        window.location.href = '/login'
       },
       setTokens: (accessToken: string, refreshToken: string) => {
         set({ accessToken, refreshToken })

@@ -274,6 +274,71 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
+export const changePassword = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      throw new AppError('Current password and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+      throw new AppError('New password must be at least 6 characters long', 400);
+    }
+
+    // Get current user
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    // Verify current password
+    if (!user.passwordHash) {
+      throw new AppError('Password not set for this account', 400);
+    }
+
+    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValidPassword) {
+      throw new AppError('Current password is incorrect', 401);
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { passwordHash }
+    });
+
+    // Log activity
+    if (req.user?.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'user.password_changed',
+          resourceType: 'user',
+          resourceId: parseInt(id)
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new AppError('User not found', 404);
+    }
+    next(error);
+  }
+};
+
 export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;

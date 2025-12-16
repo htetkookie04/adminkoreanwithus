@@ -109,6 +109,7 @@ export default function UserForm({ onSubmit, onCancel, isLoading, initialData }:
           {...register('email')}
           className="input w-full"
           placeholder="user@example.com"
+          disabled={isEditMode} // Email is view-only when editing an existing user
         />
         {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
       </div>

@@ -45,7 +45,7 @@ export default function UserDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <div className="card">
           <h2 className="text-xl font-semibold mb-4">User Information</h2>
           <dl className="space-y-3">
@@ -82,11 +82,6 @@ export default function UserDetail() {
               </dd>
             </div>
           </dl>
-        </div>
-
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Enrollments</h2>
-          <p className="text-gray-600 text-sm">Enrollment history will appear here.</p>
         </div>
       </div>
     </div>

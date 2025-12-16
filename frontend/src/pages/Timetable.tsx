@@ -24,7 +24,11 @@ export default function Timetable() {
   const entries = data?.data || []
 
   const handleSubmit = async (formData: TimetableFormData) => {
+    console.log('[Timetable Page] Form submitted:', formData)
+    console.log('[Timetable Page] Editing entry:', editingEntry)
+    
     if (editingEntry) {
+      console.log('[Timetable Page] Updating entry with ID:', editingEntry.id)
       await updateMutation.mutateAsync({ id: editingEntry.id, data: formData })
     } else {
       await createMutation.mutateAsync(formData)
@@ -160,6 +164,7 @@ export default function Timetable() {
         size="md"
       >
         <TimetableForm
+          key={editingEntry?.id || 'new'} // Force remount when editing different entry
           onSubmit={handleSubmit}
           onCancel={() => {
             setIsModalOpen(false)

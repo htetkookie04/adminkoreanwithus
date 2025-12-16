@@ -72,18 +72,32 @@ export function useUpdateTimetableEntry() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<TimetableFormData> }) => {
-      // Build request body with only defined fields
+      // Build request body - always include all fields from form data
+      // The form should always provide all fields, so we send them all
       const requestBody: Record<string, any> = {}
       
+      // Always include all fields that are provided (form should provide all)
       if (data.courseName !== undefined) requestBody.courseName = data.courseName
       if (data.level !== undefined) requestBody.level = data.level
       if (data.dayOfWeek !== undefined) requestBody.dayOfWeek = data.dayOfWeek
+      
+      // Time fields - ensure they're always included if present
       if (data.startTime !== undefined && data.startTime !== null && data.startTime !== '') {
-        requestBody.startTime = data.startTime
+        // Ensure time is in HH:MM format (24-hour)
+        const timeStr = String(data.startTime).trim()
+        requestBody.startTime = timeStr
+      } else {
+        console.warn('[Timetable Update] startTime is missing or empty:', data.startTime)
       }
+      
       if (data.endTime !== undefined && data.endTime !== null && data.endTime !== '') {
-        requestBody.endTime = data.endTime
+        // Ensure time is in HH:MM format (24-hour)
+        const timeStr = String(data.endTime).trim()
+        requestBody.endTime = timeStr
+      } else {
+        console.warn('[Timetable Update] endTime is missing or empty:', data.endTime)
       }
+      
       if (data.teacherName !== undefined) requestBody.teacherName = data.teacherName
       if (data.status !== undefined) requestBody.status = data.status
 
@@ -100,8 +114,30 @@ export function useUpdateTimetableEntry() {
       
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate all timetable queries to refresh the list
       queryClient.invalidateQueries({ queryKey: ['timetable'] })
+      // Also set the updated data directly for immediate UI update
+      queryClient.setQueriesData({ queryKey: ['timetable'] }, (oldData: any) => {
+        if (!oldData) return oldData
+        // Update the specific entry in the cache
+        const updatedEntry = data.data
+        return {
+          ...oldData,
+          data: oldData.data.map((entry: TimetableEntry) => 
+            entry.id === updatedEntry.id ? {
+              ...entry,
+              start_time: updatedEntry.start_time,
+              end_time: updatedEntry.end_time,
+              course_name: updatedEntry.course_name,
+              level: updatedEntry.level,
+              day_of_week: updatedEntry.day_of_week,
+              teacher_name: updatedEntry.teacher_name,
+              status: updatedEntry.status
+            } : entry
+          )
+        }
+      })
       toast.success('Timetable entry updated successfully')
     },
     onError: (error: any) => {

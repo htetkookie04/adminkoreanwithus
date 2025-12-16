@@ -59,6 +59,7 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
     fetchTeachers()
   }, [])
 
+  // Reset form when initialData changes (when editing different entry or switching to create mode)
   useEffect(() => {
     if (initialData) {
       // Ensure time values are properly formatted for time inputs
@@ -67,9 +68,11 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
         startTime: initialData.startTime || '09:00',
         endTime: initialData.endTime || '10:30'
       }
+      console.log('[TimetableForm] Resetting form with initial data:', formattedData)
       reset(formattedData)
     } else {
       // Reset to default values when not editing
+      console.log('[TimetableForm] Resetting form to defaults')
       reset({
         courseName: '',
         level: 'Beginner',
@@ -110,8 +113,17 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
     return `${teacher.first_name} ${teacher.last_name}`.trim() || teacher.email
   }
 
+  const handleFormSubmit = async (data: TimetableFormData) => {
+    // Debug logging
+    console.log('[TimetableForm] Form submitted with data:', data)
+    console.log('[TimetableForm] Start time:', data.startTime, 'Type:', typeof data.startTime)
+    console.log('[TimetableForm] End time:', data.endTime, 'Type:', typeof data.endTime)
+    
+    await onSubmit(data)
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Course Name <span className="text-red-500">*</span>

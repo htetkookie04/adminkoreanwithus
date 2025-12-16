@@ -61,7 +61,24 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
 
   useEffect(() => {
     if (initialData) {
-      reset(initialData)
+      // Ensure time values are properly formatted for time inputs
+      const formattedData = {
+        ...initialData,
+        startTime: initialData.startTime || '09:00',
+        endTime: initialData.endTime || '10:30'
+      }
+      reset(formattedData)
+    } else {
+      // Reset to default values when not editing
+      reset({
+        courseName: '',
+        level: 'Beginner',
+        dayOfWeek: 'Monday',
+        startTime: '09:00',
+        endTime: '10:30',
+        teacherName: '',
+        status: 'active'
+      })
     }
   }, [initialData, reset])
 
@@ -146,7 +163,7 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
           </label>
           <input
             type="time"
-            {...register('startTime')}
+            {...register('startTime', { required: true })}
             className="input w-full"
           />
           {errors.startTime && <p className="text-red-500 text-xs mt-1">{errors.startTime.message}</p>}
@@ -158,7 +175,7 @@ export default function TimetableForm({ onSubmit, onCancel, isLoading, initialDa
           </label>
           <input
             type="time"
-            {...register('endTime')}
+            {...register('endTime', { required: true })}
             className="input w-full"
           />
           {errors.endTime && <p className="text-red-500 text-xs mt-1">{errors.endTime.message}</p>}

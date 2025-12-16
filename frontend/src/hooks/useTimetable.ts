@@ -72,15 +72,32 @@ export function useUpdateTimetableEntry() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<TimetableFormData> }) => {
-      const response = await api.put(`/timetable/${id}`, {
-        courseName: data.courseName,
-        level: data.level,
-        dayOfWeek: data.dayOfWeek,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        teacherName: data.teacherName,
-        status: data.status
+      // Build request body with only defined fields
+      const requestBody: Record<string, any> = {}
+      
+      if (data.courseName !== undefined) requestBody.courseName = data.courseName
+      if (data.level !== undefined) requestBody.level = data.level
+      if (data.dayOfWeek !== undefined) requestBody.dayOfWeek = data.dayOfWeek
+      if (data.startTime !== undefined && data.startTime !== null && data.startTime !== '') {
+        requestBody.startTime = data.startTime
+      }
+      if (data.endTime !== undefined && data.endTime !== null && data.endTime !== '') {
+        requestBody.endTime = data.endTime
+      }
+      if (data.teacherName !== undefined) requestBody.teacherName = data.teacherName
+      if (data.status !== undefined) requestBody.status = data.status
+
+      // Debug logging (remove in production)
+      console.log('[Timetable Update] Sending update request:', {
+        id,
+        requestBody,
+        originalData: data
       })
+
+      const response = await api.put(`/timetable/${id}`, requestBody)
+      
+      console.log('[Timetable Update] Update response:', response.data)
+      
       return response.data
     },
     onSuccess: () => {

@@ -217,6 +217,16 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
     const { id } = req.params;
     const { courseName, level, dayOfWeek, startTime, endTime, teacherName, status } = req.body;
 
+    // Debug logging (remove in production)
+    console.log('[Timetable Update] Received request:', {
+      id,
+      body: req.body,
+      startTime,
+      endTime,
+      startTimeType: typeof startTime,
+      endTimeType: typeof endTime
+    });
+
     // Get current entry for validation
     const currentEntry = await prisma.timetable.findUnique({
       where: { id: parseInt(id) }
@@ -225,6 +235,11 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
     if (!currentEntry) {
       throw new AppError('Timetable entry not found', 404);
     }
+
+    console.log('[Timetable Update] Current entry:', {
+      currentStartTime: currentEntry.startTime,
+      currentEndTime: currentEntry.endTime
+    });
 
     // Validate day of week if changing
     if (dayOfWeek !== undefined) {
@@ -255,25 +270,54 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
     // Build update data
     const updateData: any = {};
 
-    if (courseName !== undefined) updateData.courseName = courseName;
-    if (level !== undefined) updateData.level = level;
-    if (dayOfWeek !== undefined) updateData.dayOfWeek = dayOfWeek;
-    if (startTime !== undefined) {
-      updateData.startTime = new Date(`1970-01-01T${startTime}:00`);
+    if (courseName !== undefined && courseName !== null && courseName !== '') {
+      updateData.courseName = courseName;
     }
-    if (endTime !== undefined) {
-      updateData.endTime = new Date(`1970-01-01T${endTime}:00`);
+    if (level !== undefined && level !== null && level !== '') {
+      updateData.level = level;
     }
-    if (teacherName !== undefined) updateData.teacherName = teacherName;
-    if (status !== undefined) updateData.status = status;
+    if (dayOfWeek !== undefined && dayOfWeek !== null && dayOfWeek !== '') {
+      updateData.dayOfWeek = dayOfWeek;
+    }
+    if (startTime !== undefined && startTime !== null && startTime !== '') {
+      // Ensure time is in HH:MM format
+      const timeStr = String(startTime).trim();
+      if (timeStr.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
+        updateData.startTime = new Date(`1970-01-01T${timeStr}:00`);
+      } else {
+        throw new AppError('Invalid start time format. Use HH:MM format', 400);
+      }
+    }
+    if (endTime !== undefined && endTime !== null && endTime !== '') {
+      // Ensure time is in HH:MM format
+      const timeStr = String(endTime).trim();
+      if (timeStr.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
+        updateData.endTime = new Date(`1970-01-01T${timeStr}:00`);
+      } else {
+        throw new AppError('Invalid end time format. Use HH:MM format', 400);
+      }
+    }
+    if (teacherName !== undefined && teacherName !== null && teacherName !== '') {
+      updateData.teacherName = teacherName;
+    }
+    if (status !== undefined && status !== null && status !== '') {
+      updateData.status = status;
+    }
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError('No fields to update', 400);
     }
 
+    console.log('[Timetable Update] Update data to be saved:', updateData);
+
     const entry = await prisma.timetable.update({
       where: { id: parseInt(id) },
       data: updateData
+    });
+
+    console.log('[Timetable Update] Updated entry:', {
+      startTime: entry.startTime,
+      endTime: entry.endTime
     });
 
     // Log activity

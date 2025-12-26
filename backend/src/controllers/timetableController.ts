@@ -162,8 +162,9 @@ export const createTimetableEntry = async (req: AuthRequest, res: Response, next
     }
 
     // Convert time strings to Date objects (using a fixed date for TIME type)
-    const startDate = new Date(`1970-01-01T${startTime}:00`);
-    const endDate = new Date(`1970-01-01T${endTime}:00`);
+    // Use UTC to avoid timezone conversion issues - append 'Z' to treat as UTC
+    const startDate = new Date(`1970-01-01T${startTime}:00Z`);
+    const endDate = new Date(`1970-01-01T${endTime}:00Z`);
 
     const entry = await prisma.timetable.create({
       data: {
@@ -255,8 +256,11 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
 
     if (startTime !== undefined || endTime !== undefined) {
       const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-      const startTimeStr = startTime || currentEntry.startTime.toTimeString().slice(0, 5);
-      const endTimeStr = endTime || currentEntry.endTime.toTimeString().slice(0, 5);
+      // Use UTC methods to extract time consistently
+      const startTimeStr = startTime || 
+        `${currentEntry.startTime.getUTCHours().toString().padStart(2, '0')}:${currentEntry.startTime.getUTCMinutes().toString().padStart(2, '0')}`;
+      const endTimeStr = endTime || 
+        `${currentEntry.endTime.getUTCHours().toString().padStart(2, '0')}:${currentEntry.endTime.getUTCMinutes().toString().padStart(2, '0')}`;
 
       if (!timeRegex.test(startTimeStr) || !timeRegex.test(endTimeStr)) {
         throw new AppError('Invalid time format. Use HH:MM format', 400);
@@ -283,7 +287,8 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
       // Ensure time is in HH:MM format
       const timeStr = String(startTime).trim();
       if (timeStr.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
-        updateData.startTime = new Date(`1970-01-01T${timeStr}:00`);
+        // Use UTC to avoid timezone conversion issues - append 'Z' to treat as UTC
+        updateData.startTime = new Date(`1970-01-01T${timeStr}:00Z`);
       } else {
         throw new AppError('Invalid start time format. Use HH:MM format', 400);
       }
@@ -292,7 +297,8 @@ export const updateTimetableEntry = async (req: AuthRequest, res: Response, next
       // Ensure time is in HH:MM format
       const timeStr = String(endTime).trim();
       if (timeStr.match(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
-        updateData.endTime = new Date(`1970-01-01T${timeStr}:00`);
+        // Use UTC to avoid timezone conversion issues - append 'Z' to treat as UTC
+        updateData.endTime = new Date(`1970-01-01T${timeStr}:00Z`);
       } else {
         throw new AppError('Invalid end time format. Use HH:MM format', 400);
       }

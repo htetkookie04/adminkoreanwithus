@@ -92,23 +92,26 @@ export default function Timetable() {
         if (timeString.includes(':')) {
           const [hours, minutes] = timeString.split(':').map(Number)
           const tempDate = new Date()
-          tempDate.setHours(hours, minutes || 0, 0, 0)
-          return formatTimeFromDate(tempDate)
+          tempDate.setUTCHours(hours, minutes || 0, 0, 0)
+          return formatTimeFromDate(tempDate, true)
         }
         return timeString
       }
 
-      return formatTimeFromDate(date)
+      // Use UTC methods to avoid timezone conversion issues
+      // Times are stored as UTC in the database (1970-01-01T19:00:00.000Z = 7:00 PM)
+      return formatTimeFromDate(date, true)
     } catch (error) {
       // Fallback to original string if parsing fails
       return timeString
     }
   }
 
-  const formatTimeFromDate = (date: Date): string => {
+  const formatTimeFromDate = (date: Date, useUTC: boolean = false): string => {
     // Format to 12-hour format with am/pm
-    let hours = date.getHours()
-    const minutes = date.getMinutes()
+    // Use UTC methods to avoid timezone conversion when times are stored as UTC
+    let hours = useUTC ? date.getUTCHours() : date.getHours()
+    const minutes = useUTC ? date.getUTCMinutes() : date.getMinutes()
     const ampm = hours >= 12 ? 'pm' : 'am'
     hours = hours % 12
     hours = hours ? hours : 12 // the hour '0' should be '12'
@@ -135,8 +138,9 @@ export default function Timetable() {
         return timeString
       }
       // Convert to HH:MM format for time input
-      const hours = date.getHours().toString().padStart(2, '0')
-      const minutes = date.getMinutes().toString().padStart(2, '0')
+      // Use UTC methods to avoid timezone conversion when times are stored as UTC
+      const hours = date.getUTCHours().toString().padStart(2, '0')
+      const minutes = date.getUTCMinutes().toString().padStart(2, '0')
       return `${hours}:${minutes}`
     } catch (error) {
       return timeString

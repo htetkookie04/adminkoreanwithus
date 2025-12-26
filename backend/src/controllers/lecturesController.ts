@@ -248,7 +248,7 @@ export const getLectures = async (req: AuthRequest, res: Response, next: NextFun
           }
         },
         orderBy: {
-          createdAt: 'desc'
+          createdAt: 'asc'
         },
         skip,
         take: limit
@@ -810,7 +810,7 @@ export const getLecturesByCourse = async (req: AuthRequest, res: Response, next:
           }
         },
         orderBy: {
-          createdAt: 'desc'
+          createdAt: 'asc'
         },
         skip,
         take: limit

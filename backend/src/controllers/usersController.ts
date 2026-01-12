@@ -278,6 +278,7 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
   try {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
+    const requestingUser = req.user!;
 
     if (!currentPassword || !newPassword) {
       throw new AppError('Current password and new password are required', 400);
@@ -285,6 +286,11 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
 
     if (newPassword.length < 6) {
       throw new AppError('New password must be at least 6 characters long', 400);
+    }
+
+    // AUTHORIZATION: Users can only change their own password (unless they are super_admin)
+    if (requestingUser.id !== parseInt(id) && requestingUser.roleName !== 'super_admin') {
+      throw new AppError('You can only change your own password', 403);
     }
 
     // Get current user

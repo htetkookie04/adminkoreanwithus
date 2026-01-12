@@ -398,3 +398,97 @@ export const deleteTimetableEntry = async (req: AuthRequest, res: Response, next
     next(error);
   }
 };
+
+// Update timetable status - for teachers to update their class status
+export const updateTimetableStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const user = req.user!;
+
+    // Validate status
+    const validStatuses = ['active', 'cancelled', 'completed'];
+    if (!status || !validStatuses.includes(status)) {
+      throw new AppError('Invalid status. Must be one of: active, cancelled, completed', 400);
+    }
+
+    // Get current entry
+    const currentEntry = await prisma.timetable.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!currentEntry) {
+      throw new AppError('Timetable entry not found', 404);
+    }
+
+    // For teachers, verify they own this timetable entry
+    if (user.roleName === 'teacher') {
+      const teacherUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true
+        }
+      });
+
+      if (teacherUser) {
+        const firstName = teacherUser.firstName || '';
+        const lastName = teacherUser.lastName || '';
+        const teacherFullName = `${firstName} ${lastName}`.trim() || teacherUser.email;
+        
+        // Check if this entry belongs to the teacher
+        if (currentEntry.teacherName !== teacherFullName) {
+          throw new AppError('You can only update status for your own timetable entries', 403);
+        }
+      }
+    }
+
+    // Update only the status
+    const entry = await prisma.timetable.update({
+      where: { id: parseInt(id) },
+      data: { status }
+    });
+
+    // Log activity
+    if (user.id) {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: 'timetable.status_updated',
+          resourceType: 'timetable',
+          resourceId: parseInt(id),
+          meta: { 
+            oldStatus: currentEntry.status,
+            newStatus: status 
+          }
+        }
+      });
+    }
+
+    // Format response
+    const formattedEntry = {
+      id: entry.id,
+      course_name: entry.courseName,
+      level: entry.level,
+      day_of_week: entry.dayOfWeek,
+      start_time: entry.startTime,
+      end_time: entry.endTime,
+      teacher_name: entry.teacherName,
+      status: entry.status,
+      created_at: entry.createdAt,
+      updated_at: entry.updatedAt
+    };
+
+    res.json({
+      success: true,
+      data: formattedEntry,
+      message: 'Status updated successfully'
+    });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new AppError('Timetable entry not found', 404);
+    }
+    next(error);
+  }
+};

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { api } from '../../../shared/lib/api'
 import { queryClient } from '../../../shared/lib/queryClient'
+import { usePermissionsStore } from './permissionsStore'
 
 interface User {
   id: number
@@ -75,6 +76,9 @@ export const useAuthStore = create<AuthState>()(
         // Clear all React Query cache
         queryClient.clear()
         
+        // Clear permissions
+        usePermissionsStore.getState().clearPermissions()
+        
         // Clear auth state
         set({
           user: null,
@@ -86,8 +90,9 @@ export const useAuthStore = create<AuthState>()(
         // Remove auth header
         delete api.defaults.headers.common['Authorization']
         
-        // Clear localStorage for auth (persist middleware will handle this, but we ensure it's cleared)
+        // Clear localStorage
         localStorage.removeItem('auth-storage')
+        localStorage.removeItem('permissions-storage')
         
         // Force page reload to ensure all state is reset
         window.location.href = '/login'

@@ -6,4 +6,5 @@ export { default as ProtectedRoute } from './components/ProtectedRoute'
 
 // Store
 export * from './store/authStore'
+export * from './store/permissionsStore'
 

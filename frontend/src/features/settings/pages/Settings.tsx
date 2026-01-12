@@ -4,6 +4,7 @@ import { useRoles } from '../../users/hooks/useRoles'
 import { useAuthStore } from '../../auth/store/authStore'
 import { toast } from '../../../shared/components/ui/Toast'
 import { Eye, EyeOff, Lock, KeyRound } from 'lucide-react'
+import RoleMenuPermissions from '../components/RoleMenuPermissions'
 
 export default function Settings() {
   const { user } = useAuthStore()
@@ -120,6 +121,7 @@ export default function Settings() {
   }
 
   const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
+  const isSuperAdmin = user?.roleName === 'super_admin'
 
   if (loading) {
     return (
@@ -134,8 +136,8 @@ export default function Settings() {
       <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
 
       <div className="space-y-6">
-        {/* Admin Settings - Only visible to admins */}
-        {isAdmin && (
+        {/* Admin Settings - Only visible to Super Admins */}
+        {isSuperAdmin && (
           <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Admin Settings</h2>
@@ -340,17 +342,22 @@ export default function Settings() {
           </form>
         </div>
 
-        {/* User Permissions - Only visible to admins */}
+        {/* Role Menu Permissions - Only visible to Super Admins */}
+        {isSuperAdmin && (
+          <RoleMenuPermissions />
+        )}
+
+        {/* User Permissions (Roles Display) - Only visible to admins */}
         {isAdmin && (
           <div className="card">
-          <h2 className="text-xl font-semibold mb-4">User Permissions</h2>
+          <h2 className="text-xl font-semibold mb-4">User Roles</h2>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Roles
+                Available Roles
               </label>
               <p className="text-xs text-gray-500 mb-3">
-                If you have different roles, adding a section for role management might be useful.
+                List of all user roles in the system. Use the Role Menu Permissions section above to manage menu access for each role.
               </p>
               {rolesLoading ? (
                 <div className="text-sm text-gray-500">Loading roles...</div>

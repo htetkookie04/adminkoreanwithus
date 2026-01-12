@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Role {
-  id              Int              @id @default(autoincrement())
-  name            String           @unique
-  description     String?
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  rolePermissions RolePermission[]
-  users           User[]
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  description         String?
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  rolePermissions     RolePermission[]
+  roleMenuPermissions RoleMenuPermission[]
+  users               User[]
 
   @@map("roles")
 }
@@ -38,6 +39,25 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model RoleMenuPermission {
+  id        Int      @id @default(autoincrement())
+  roleId    Int      @map("role_id")
+  menuKey   String   @map("menu_key")
+  menuLabel String   @map("menu_label")
+  menuPath  String   @map("menu_path")
+  menuIcon  String?  @map("menu_icon")
+  sortOrder Int      @default(0) @map("sort_order")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, menuKey])
+  @@index([roleId])
+  @@index([enabled])
+  @@map("role_menu_permissions")
 }
 
 model User {

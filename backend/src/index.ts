@@ -16,6 +16,7 @@ import { galleryRouter } from './routes/gallery';
 import { lecturesRouter } from './routes/lectures';
 import { analyticsRouter } from './routes/analytics';
 import { rolesRouter } from './routes/roles';
+import { menuPermissionsRouter } from './routes/menuPermissions';
 import path from 'path';
 
 dotenv.config();
@@ -132,6 +133,7 @@ app.use('/api/gallery', galleryRouter);
 app.use('/api/lectures', lecturesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/roles', rolesRouter);
+app.use('/api/menu-permissions', menuPermissionsRouter);
 
 // Error handling (must be last)
 app.use(errorHandler);

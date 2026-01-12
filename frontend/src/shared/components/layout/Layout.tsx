@@ -1,5 +1,8 @@
+import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../../features/auth/store/authStore'
+import { usePermissionsStore } from '../../../features/auth/store/permissionsStore'
+import { api } from '../../lib/api'
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -8,66 +11,135 @@ import {
   Video, 
   Calendar, 
   Settings, 
-  LogOut
+  LogOut,
+  LucideIcon
 } from 'lucide-react'
+
+interface MenuItem {
+  name: string
+  href: string
+  icon: LucideIcon
+}
+
+interface MenuPermission {
+  id: number
+  menuKey: string
+  menuLabel: string
+  menuPath: string
+  menuIcon: string
+  sortOrder: number
+}
+
+// Icon mapping
+const iconMap: Record<string, LucideIcon> = {
+  LayoutDashboard,
+  BookOpen,
+  Users,
+  CheckCircle,
+  Video,
+  Calendar,
+  Settings
+}
 
 export default function Layout() {
   const { user, logout } = useAuthStore()
   const location = useLocation()
+  const { 
+    menuPermissions, 
+    fetchMenuPermissions, 
+    refreshPermissions 
+  } = usePermissionsStore()
+  const [navigation, setNavigation] = useState<MenuItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
-  const isTeacher = user?.roleName === 'teacher'
-  const isUser = user?.roleName === 'user'
-  const isViewer = user?.roleName === 'viewer'
-  const isStudent = user?.roleName === 'student'
+  // Fetch permissions on mount and when user role changes
+  useEffect(() => {
+    const loadPermissions = async () => {
+      setLoading(true)
+      await fetchMenuPermissions()
+      setLoading(false)
+    }
+    
+    loadPermissions()
+  }, [user?.roleId, fetchMenuPermissions])
 
-  const baseNavigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Courses', href: '/courses', icon: BookOpen }
-  ]
+  // Convert menu permissions to navigation items
+  useEffect(() => {
+    if (menuPermissions.length > 0) {
+      const menuItems: MenuItem[] = menuPermissions.map(permission => ({
+        name: permission.menuLabel,
+        href: permission.menuPath,
+        icon: iconMap[permission.menuIcon] || BookOpen
+      }))
+      setNavigation(menuItems)
+      setLoading(false)
+    } else if (!loading) {
+      // If no permissions and not loading, use fallback
+      setNavigation(getFallbackNavigation())
+    }
+  }, [menuPermissions, loading])
 
-  const adminNavigation = [
-    { name: 'Users', href: '/users', icon: Users },
-    { name: 'Enrollments', href: '/enrollments', icon: CheckCircle },
-    { name: 'Lectures', href: '/lectures', icon: Video },
-    { name: 'Timetable', href: '/timetable', icon: Calendar },
-    { name: 'Settings', href: '/settings', icon: Settings }
-  ]
+  // Listen for permission updates (when admin changes permissions)
+  useEffect(() => {
+    const handlePermissionsUpdated = async () => {
+      console.log('🔄 Permissions updated, refreshing...')
+      await refreshPermissions()
+    }
 
-  const teacherNavigation = [
-    { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Lectures', href: '/lectures', icon: Video },
-    { name: 'Timetable', href: '/timetable', icon: Calendar },
-    { name: 'Settings', href: '/settings', icon: Settings }
-  ]
+    window.addEventListener('permissions-updated', handlePermissionsUpdated)
+    return () => {
+      window.removeEventListener('permissions-updated', handlePermissionsUpdated)
+    }
+  }, [refreshPermissions])
 
-  const userNavigation = [
-    { name: 'Lectures', href: '/lectures', icon: Video },
-    { name: 'Settings', href: '/settings', icon: Settings }
-  ]
+  const getFallbackNavigation = (): MenuItem[] => {
+    const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
+    const isTeacher = user?.roleName === 'teacher'
+    const isUser = user?.roleName === 'user'
+    const isViewer = user?.roleName === 'viewer'
+    const isStudent = user?.roleName === 'student'
 
-  const studentNavigation = [
-    { name: 'My Lectures', href: '/my-lectures', icon: Video },
-    { name: 'Settings', href: '/settings', icon: Settings }
-  ]
+    const baseNavigation = [
+      { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+      { name: 'Courses', href: '/courses', icon: BookOpen }
+    ]
 
-  let navigation: typeof baseNavigation = []
-  if (isAdmin) {
-    navigation = [...baseNavigation, ...adminNavigation]
-  } else if (isTeacher) {
-    // Teacher role: Courses, Lectures, and Timetable (no Dashboard, no Enrollments)
-    navigation = [...teacherNavigation]
-  } else if (isUser) {
-    // User role can only see Lectures menu
-    navigation = [...userNavigation]
-  } else if (isViewer) {
-    // Viewer role can only see Lectures menu (no Dashboard)
-    navigation = [...userNavigation]
-  } else if (isStudent) {
-    navigation = [...baseNavigation, ...studentNavigation]
-  } else {
-    // Default fallback
-    navigation = [...baseNavigation]
+    const adminNavigation = [
+      { name: 'Users', href: '/users', icon: Users },
+      { name: 'Enrollments', href: '/enrollments', icon: CheckCircle },
+      { name: 'Lectures', href: '/lectures', icon: Video },
+      { name: 'Timetable', href: '/timetable', icon: Calendar },
+      { name: 'Settings', href: '/settings', icon: Settings }
+    ]
+
+    const teacherNavigation = [
+      { name: 'Courses', href: '/courses', icon: BookOpen },
+      { name: 'Lectures', href: '/lectures', icon: Video },
+      { name: 'Timetable', href: '/timetable', icon: Calendar },
+      { name: 'Settings', href: '/settings', icon: Settings }
+    ]
+
+    const userNavigation = [
+      { name: 'Lectures', href: '/lectures', icon: Video },
+      { name: 'Settings', href: '/settings', icon: Settings }
+    ]
+
+    const studentNavigation = [
+      { name: 'My Lectures', href: '/my-lectures', icon: Video },
+      { name: 'Settings', href: '/settings', icon: Settings }
+    ]
+
+    if (isAdmin) {
+      return [...baseNavigation, ...adminNavigation]
+    } else if (isTeacher) {
+      return teacherNavigation
+    } else if (isUser || isViewer) {
+      return userNavigation
+    } else if (isStudent) {
+      return [...baseNavigation, ...studentNavigation]
+    }
+    
+    return baseNavigation
   }
 
   const isActive = (path: string) => {
@@ -75,6 +147,14 @@ export default function Layout() {
       return location.pathname === '/'
     }
     return location.pathname.startsWith(path)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+      </div>
+    )
   }
 
   return (
@@ -96,23 +176,29 @@ export default function Layout() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1">
-            {navigation.map((item) => {
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                    isActive(item.href)
-                      ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md shadow-pink-200'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mr-3" />
-                  {item.name}
-                </Link>
-              )
-            })}
+            {navigation.length === 0 ? (
+              <div className="text-center text-sm text-gray-500 py-4">
+                No menus available
+              </div>
+            ) : (
+              navigation.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`flex items-center px-4 py-3 text-sm font-semibold rounded-xl transition-all duration-200 ${
+                      isActive(item.href)
+                        ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md shadow-pink-200'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    {item.name}
+                  </Link>
+                )
+              })
+            )}
           </nav>
 
           {/* User info */}
@@ -124,7 +210,7 @@ export default function Layout() {
                   : user?.firstName || user?.lastName || 'User'}
               </p>
               <p className="text-xs text-gray-600 truncate mt-0.5">
-                {user?.email || 'admin@korean...'}
+                {user?.email || 'user@example.com'}
               </p>
               <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-pink-700 bg-pink-100 rounded-md uppercase">
                 {user?.roleName || 'SUPER ADMIN'}

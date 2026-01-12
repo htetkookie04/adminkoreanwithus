@@ -119,7 +119,9 @@ export default function Layout() {
           <div className="p-5 border-t border-gray-100 bg-gray-50">
             <div className="mb-3">
               <p className="text-sm font-semibold text-gray-900 truncate">
-                Admin User
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user?.firstName || user?.lastName || 'User'}
               </p>
               <p className="text-xs text-gray-600 truncate mt-0.5">
                 {user?.email || 'admin@korean...'}

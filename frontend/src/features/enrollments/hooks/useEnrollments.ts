@@ -49,7 +49,9 @@ export function useEnrollment(id: number | string | undefined) {
       const response = await api.get(`/enrollments/${id}`)
       return response.data
     },
-    enabled: !!id
+    enabled: !!id,
+    staleTime: 0, // Always refetch when component mounts
+    refetchOnMount: 'always' // Force refetch every time the component mounts
   })
 }
 
@@ -120,8 +122,11 @@ export function useApproveEnrollment() {
       const response = await api.post(`/enrollments/${id}/approve`)
       return response.data
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
+      // Invalidate both the list and individual enrollment caches
       queryClient.invalidateQueries({ queryKey: ['enrollments'] })
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables] })
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables.toString()] })
       toast.success('Enrollment approved successfully')
     },
     onError: (error: any) => {

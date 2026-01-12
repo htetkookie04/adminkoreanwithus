@@ -1,10 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useUpdateEnrollment, useApproveEnrollment, useEnrollment } from '../hooks/useEnrollments'
+import { useQueryClient } from '@tanstack/react-query'
 
 export default function EnrollmentDetail() {
   const { id } = useParams()
   const [isUpdating, setIsUpdating] = useState(false)
+  const queryClient = useQueryClient()
+
+  // Refetch enrollment data whenever the component mounts or id changes
+  useEffect(() => {
+    if (id) {
+      queryClient.invalidateQueries({ queryKey: ['enrollment', id] })
+    }
+  }, [id, queryClient])
 
   const { data: enrollmentData, isLoading: loading } = useEnrollment(id)
   const enrollment = enrollmentData?.data

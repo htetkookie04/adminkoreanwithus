@@ -173,6 +173,7 @@ export const getEnrollment = async (req: AuthRequest, res: Response, next: NextF
       end_time: enrollment.schedule?.endTime || null,
       location: enrollment.schedule?.location || null,
       teacher_id: enrollment.schedule?.teacherId || null,
+      payment_status: enrollment.paymentStatus, // Convert camelCase to snake_case
       enrolled_at: enrollment.enrolledAt,
       created_at: enrollment.createdAt,
       updated_at: enrollment.updatedAt
@@ -180,6 +181,7 @@ export const getEnrollment = async (req: AuthRequest, res: Response, next: NextF
     delete (formattedEnrollment as any).user;
     delete (formattedEnrollment as any).course;
     delete (formattedEnrollment as any).schedule;
+    delete (formattedEnrollment as any).paymentStatus; // Remove camelCase version
     delete (formattedEnrollment as any).enrolledAt;
     delete (formattedEnrollment as any).createdAt;
     delete (formattedEnrollment as any).updatedAt;
@@ -407,6 +409,7 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
       user_id: enrollment.userId,
       course_id: enrollment.courseId,
       schedule_id: enrollment.scheduleId,
+      payment_status: enrollment.paymentStatus, // Convert camelCase to snake_case
       enrolled_at: enrollment.enrolledAt,
       created_at: enrollment.createdAt,
       updated_at: enrollment.updatedAt
@@ -414,6 +417,7 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
     delete (formattedEnrollment as any).user;
     delete (formattedEnrollment as any).course;
     delete (formattedEnrollment as any).schedule;
+    delete (formattedEnrollment as any).paymentStatus; // Remove camelCase version
     delete (formattedEnrollment as any).enrolledAt;
     delete (formattedEnrollment as any).createdAt;
     delete (formattedEnrollment as any).updatedAt;

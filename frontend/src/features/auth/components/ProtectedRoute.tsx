@@ -14,9 +14,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <Navigate to="/login" replace />
   }
 
-  // Viewer and User role restrictions: only allow /lectures routes
+  // Viewer and User role restrictions: only allow /lectures and /settings routes
   if (user?.roleName === 'viewer' || user?.roleName === 'user') {
-    const allowedPaths = ['/lectures']
+    const allowedPaths = ['/lectures', '/settings']
     const isAllowedPath = allowedPaths.some(path => 
       location.pathname === path || location.pathname.startsWith(path + '/')
     )

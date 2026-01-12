@@ -42,7 +42,8 @@ export default function Layout() {
   ]
 
   const userNavigation = [
-    { name: 'Lectures', href: '/lectures', icon: Video }
+    { name: 'Lectures', href: '/lectures', icon: Video },
+    { name: 'Settings', href: '/settings', icon: Settings }
   ]
 
   const studentNavigation = [

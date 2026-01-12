@@ -120,9 +120,6 @@ export default function Settings() {
   }
 
   const isAdmin = user?.roleName === 'admin' || user?.roleName === 'super_admin'
-  const isStudent = user?.roleName === 'student'
-  const isTeacher = user?.roleName === 'teacher'
-  const showOnlyPasswordChange = isStudent || isTeacher
 
   if (loading) {
     return (

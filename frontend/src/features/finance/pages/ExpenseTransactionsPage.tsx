@@ -18,7 +18,7 @@ export default function ExpenseTransactionsPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null)
   const [formCategoryName, setFormCategoryName] = useState('')
@@ -241,7 +241,7 @@ export default function ExpenseTransactionsPage() {
         </select>
         <select
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
+          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | '')}
           className="input max-w-[140px]"
         >
           <option value="">All methods</option>

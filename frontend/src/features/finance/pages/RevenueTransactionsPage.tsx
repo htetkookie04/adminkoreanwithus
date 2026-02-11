@@ -17,9 +17,10 @@ const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'KBZPAY', 'WAVEPAY', 'BANK', '
 
 function getErrorInfo(error: unknown): { message?: string; statusCode?: number } {
   if (error && typeof error === 'object' && 'response' in error) {
-    const res = (error as { response?: { data?: { error?: { message?: string }; message?: string }; status?: number } }).response
+    const err = error as { response?: { data?: { error?: { message?: string }; message?: string }; status?: number } }
+    const res = err.response
     return {
-      message: res?.data?.error?.message ?? res?.data?.message ?? (error as Error).message,
+      message: res?.data?.error?.message ?? res?.data?.message ?? (error instanceof Error ? error.message : 'An error occurred'),
       statusCode: res?.status
     }
   }
@@ -30,7 +31,7 @@ export default function RevenueTransactionsPage() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<FinanceTransaction | null>(null)
   const [formCategoryName, setFormCategoryName] = useState('')
@@ -265,7 +266,7 @@ export default function RevenueTransactionsPage() {
         </select>
         <select
           value={paymentMethod}
-          onChange={(e) => setPaymentMethod(e.target.value)}
+          onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | '')}
           className="input max-w-[140px]"
         >
           <option value="">All methods</option>

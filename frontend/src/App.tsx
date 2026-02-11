@@ -8,6 +8,14 @@ import { Enrollments, EnrollmentDetail } from './features/enrollments'
 import { Settings } from './features/settings'
 import { Timetable } from './features/schedule'
 import { Lectures, CourseLecturePage, MyLectures } from './features/lectures'
+import {
+  RevenueTransactionsPage,
+  ExpenseTransactionsPage,
+  BooksPage,
+  BookSalesPage,
+  PayrollPage,
+  ReportsPage
+} from './features/finance'
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
@@ -44,6 +52,13 @@ function App() {
           <Route path="my-lectures" element={<MyLectures />} />
           <Route path="settings" element={<Settings />} />
           <Route path="timetable" element={<Timetable />} />
+          <Route path="finance" element={<Navigate to="/finance/revenue" replace />} />
+          <Route path="finance/revenue" element={<RevenueTransactionsPage />} />
+          <Route path="finance/expenses" element={<ExpenseTransactionsPage />} />
+          <Route path="finance/books" element={<BooksPage />} />
+          <Route path="finance/book-sales" element={<BookSalesPage />} />
+          <Route path="finance/payroll" element={<PayrollPage />} />
+          <Route path="finance/reports" element={<ReportsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

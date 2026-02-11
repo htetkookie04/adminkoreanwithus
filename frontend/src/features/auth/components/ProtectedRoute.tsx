@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, user } = useAuthStore()
   const location = useLocation()
   const { 
     fetchMenuPermissions, 
@@ -45,6 +45,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   
   // Allow root path for checking
   if (currentPath === '/') {
+    return <>{children}</>
+  }
+
+  // Allow /finance/* for admin and super_admin (Finance menu may be injected in Layout but not in allowedPaths from API)
+  const roleName = user?.roleName
+  const isAdmin = roleName === 'admin' || roleName === 'super_admin'
+  if (currentPath.startsWith('/finance') && isAdmin) {
     return <>{children}</>
   }
 

@@ -228,6 +228,7 @@ export const getAvailableMenus = async (req: AuthRequest, res: Response, next: N
       { menuKey: 'enrollments', menuLabel: 'Enrollments', menuPath: '/enrollments', menuIcon: 'CheckCircle' },
       { menuKey: 'lectures', menuLabel: 'Lectures', menuPath: '/lectures', menuIcon: 'Video' },
       { menuKey: 'timetable', menuLabel: 'Timetable', menuPath: '/timetable', menuIcon: 'Calendar' },
+      { menuKey: 'finance', menuLabel: 'Finance', menuPath: '/finance/revenue', menuIcon: 'DollarSign' },
       { menuKey: 'settings', menuLabel: 'Settings', menuPath: '/settings', menuIcon: 'Settings' },
       { menuKey: 'my-lectures', menuLabel: 'My Lectures', menuPath: '/my-lectures', menuIcon: 'Video' }
     ];

@@ -17,6 +17,7 @@ import { lecturesRouter } from './routes/lectures';
 import { analyticsRouter } from './routes/analytics';
 import { rolesRouter } from './routes/roles';
 import { menuPermissionsRouter } from './routes/menuPermissions';
+import { v1Router } from './routes/v1';
 import path from 'path';
 
 dotenv.config();
@@ -134,6 +135,7 @@ app.use('/api/lectures', lecturesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/roles', rolesRouter);
 app.use('/api/menu-permissions', menuPermissionsRouter);
+app.use('/api/v1', v1Router);
 
 // Error handling (must be last)
 app.use(errorHandler);

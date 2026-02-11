@@ -62,6 +62,50 @@ async function main() {
     console.log('ℹ️  Admin user already exists');
   }
 
+  // Seed default finance categories (create if not exist by type+name)
+  const revenueCategories = ['Student Payments', 'Book Sales', 'Other Revenue'];
+  const expenseCategories = ['Purchases', 'Payroll', 'Operations', 'Other Expense'];
+
+  for (const name of revenueCategories) {
+    const existing = await prisma.financeCategory.findFirst({ where: { type: 'REVENUE', name } });
+    if (!existing) {
+      await prisma.financeCategory.create({ data: { type: 'REVENUE', name, isActive: true } });
+    }
+  }
+  for (const name of expenseCategories) {
+    const existing = await prisma.financeCategory.findFirst({ where: { type: 'EXPENSE', name } });
+    if (!existing) {
+      await prisma.financeCategory.create({ data: { type: 'EXPENSE', name, isActive: true } });
+    }
+  }
+  console.log('✅ Finance categories seeded');
+
+  // Seed Finance menu for Super Admin (1) and Admin (2) so it appears in sidebar
+  for (const roleId of [1, 2]) {
+    await prisma.roleMenuPermission.upsert({
+      where: {
+        roleId_menuKey: { roleId, menuKey: 'finance' }
+      },
+      update: {
+        menuLabel: 'Finance',
+        menuPath: '/finance/revenue',
+        menuIcon: 'DollarSign',
+        sortOrder: 7,
+        enabled: true
+      },
+      create: {
+        roleId,
+        menuKey: 'finance',
+        menuLabel: 'Finance',
+        menuPath: '/finance/revenue',
+        menuIcon: 'DollarSign',
+        sortOrder: 7,
+        enabled: true
+      }
+    });
+  }
+  console.log('✅ Finance menu seeded for admin roles');
+
   console.log('🎉 Database seed completed!');
 }
 

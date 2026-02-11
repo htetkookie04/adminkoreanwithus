@@ -12,6 +12,7 @@ import {
   Calendar, 
   Settings, 
   LogOut,
+  DollarSign,
   LucideIcon
 } from 'lucide-react'
 
@@ -38,7 +39,8 @@ const iconMap: Record<string, LucideIcon> = {
   CheckCircle,
   Video,
   Calendar,
-  Settings
+  Settings,
+  DollarSign
 }
 
 export default function Layout() {
@@ -71,13 +73,27 @@ export default function Layout() {
         href: permission.menuPath,
         icon: iconMap[permission.menuIcon] || BookOpen
       }))
+      // Ensure Finance is visible for admin/super_admin even if not in DB permissions yet
+      const currentUser = useAuthStore.getState().user
+      const roleName = currentUser?.roleName ?? user?.roleName
+      const isAdmin = roleName === 'admin' || roleName === 'super_admin'
+      const hasFinance = menuItems.some(item => item.href.startsWith('/finance'))
+      if (isAdmin && !hasFinance) {
+        const timetableIndex = menuItems.findIndex(item => item.href === '/timetable')
+        const insertIndex = timetableIndex >= 0 ? timetableIndex + 1 : menuItems.length
+        menuItems.splice(insertIndex, 0, {
+          name: 'Finance',
+          href: '/finance/revenue',
+          icon: DollarSign
+        })
+      }
       setNavigation(menuItems)
       setLoading(false)
     } else if (!loading) {
-      // If no permissions and not loading, use fallback
+      // If no permissions and not loading, use fallback (includes Finance for admin)
       setNavigation(getFallbackNavigation())
     }
-  }, [menuPermissions, loading])
+  }, [menuPermissions, loading, user?.roleName])
 
   // Listen for permission updates (when admin changes permissions)
   useEffect(() => {
@@ -109,6 +125,7 @@ export default function Layout() {
       { name: 'Enrollments', href: '/enrollments', icon: CheckCircle },
       { name: 'Lectures', href: '/lectures', icon: Video },
       { name: 'Timetable', href: '/timetable', icon: Calendar },
+      { name: 'Finance', href: '/finance/revenue', icon: DollarSign },
       { name: 'Settings', href: '/settings', icon: Settings }
     ]
 

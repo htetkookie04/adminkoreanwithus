@@ -108,7 +108,7 @@ export default function Login() {
                     type={showPassword ? "text" : "password"}
                     required
                     className="input pl-11 pr-11"
-                    placeholder="••••••••"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />

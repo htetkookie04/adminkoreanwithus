@@ -238,6 +238,22 @@ export function useUpdateBookSale() {
   })
 }
 
+export function useDeleteBookSale() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteBookSale(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['finance', 'book-sales'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'transactions'] })
+      qc.invalidateQueries({ queryKey: ['finance', 'report'] })
+      toast.success('Sale deleted')
+    },
+    onError: (err: { response?: { data?: { error?: { message?: string }; message?: string } }; message?: string }) => {
+      toast.error(err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Failed')
+    }
+  })
+}
+
 // Payroll
 export function usePayroll(month: string | null) {
   return useQuery({

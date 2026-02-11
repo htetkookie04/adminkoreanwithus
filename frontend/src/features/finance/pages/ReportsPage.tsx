@@ -52,9 +52,9 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 ]
 
 const SUMMARY_BAR_COLORS = {
-  Revenue: '#16a34a',
-  Expense: '#dc2626',
-  Payroll: '#b45309'
+  Revenue: '#db2777',
+  Expense: '#ec4899',
+  Payroll: '#f472b6'
 }
 
 function getSummaryChartData(report: FinanceReport): { name: string; value: number; fill: string }[] {
@@ -73,7 +73,16 @@ function getCategoryChartData(report: FinanceReport): { name: string; value: num
   }))
 }
 
-const PIE_COLORS = ['#16a34a', '#dc2626', '#2563eb', '#b45309', '#7c3aed', '#0d9488', '#e11d48', '#ca8a04']
+const PIE_COLORS = [
+  '#9d174d',
+  '#be185d',
+  '#db2777',
+  '#ec4899',
+  '#f472b6',
+  '#f9a8d4',
+  '#fbcfe8',
+  '#fce7f3'
+]
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>('month')

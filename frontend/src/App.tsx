@@ -60,6 +60,7 @@ function App() {
           <Route path="finance/payroll" element={<PayrollPage />} />
           <Route path="finance/reports" element={<ReportsPage />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

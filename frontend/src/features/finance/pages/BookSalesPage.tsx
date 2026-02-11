@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Modal } from '../../../shared'
-import { useBooks, useBookSales, useCreateBookSale, useUpdateBookSale } from '../hooks/useFinance'
+import { useBooks, useBookSales, useCreateBookSale, useUpdateBookSale, useDeleteBookSale } from '../hooks/useFinance'
 import type { Book, BookSale, PaymentMethod } from '../lib/api'
-import { Plus, Filter, Pencil } from 'lucide-react'
+import { Plus, Filter, Pencil, Trash2 } from 'lucide-react'
 import FinanceNav from '../components/FinanceNav'
 
 const PAYMENT_METHODS: PaymentMethod[] = ['CASH', 'KBZPAY', 'WAVEPAY', 'BANK', 'CARD']
@@ -32,7 +32,7 @@ export default function BookSalesPage() {
   const [to, setTo] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingSale, setEditingSale] = useState<BookSale | null>(null)
-  const [soldAt, setSoldAt] = useState(new Date().toISOString().slice(0, 16))
+  const [soldAt, setSoldAt] = useState(new Date().toISOString().slice(0, 10))
   const [customerName, setCustomerName] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH')
   const [currency, setCurrency] = useState<'MMK' | 'KRW' | 'USD'>('MMK')
@@ -47,6 +47,13 @@ export default function BookSalesPage() {
   const sales = salesData?.data ?? []
   const createMutation = useCreateBookSale()
   const updateMutation = useUpdateBookSale()
+  const deleteMutation = useDeleteBookSale()
+
+  const handleDeleteSale = async (sale: BookSale) => {
+    if (!window.confirm('Delete this book sale? The linked finance entry will be removed. This cannot be undone.'))
+      return
+    await deleteMutation.mutateAsync(sale.id)
+  }
 
   const totalAmount = useMemo(() => items.reduce((sum, i) => sum + i.qty * i.unitPrice, 0), [items])
   const { profit: totalProfit, costMissing } = useMemo(
@@ -70,7 +77,7 @@ export default function BookSalesPage() {
 
   const openNewModal = () => {
     setEditingSale(null)
-    setSoldAt(new Date().toISOString().slice(0, 16))
+    setSoldAt(new Date().toISOString().slice(0, 10))
     setCustomerName('')
     setPaymentMethod('CASH')
     setCurrency('MMK')
@@ -80,7 +87,7 @@ export default function BookSalesPage() {
 
   const openEditModal = (sale: BookSale) => {
     setEditingSale(sale)
-    setSoldAt(new Date(sale.soldAt).toISOString().slice(0, 16))
+    setSoldAt(new Date(sale.soldAt).toISOString().slice(0, 10))
     setCustomerName(sale.customerName ?? '')
     setPaymentMethod(sale.paymentMethod)
     setCurrency(sale.currency)
@@ -109,7 +116,7 @@ export default function BookSalesPage() {
       await updateMutation.mutateAsync({
         id: editingSale.id,
         data: {
-          soldAt: new Date(soldAt).toISOString(),
+          soldAt: new Date(soldAt + 'T00:00:00').toISOString(),
           customerName: customerName || null,
           paymentMethod,
           currency,
@@ -123,7 +130,7 @@ export default function BookSalesPage() {
       })
     } else {
       await createMutation.mutateAsync({
-        soldAt: new Date(soldAt).toISOString(),
+        soldAt: new Date(soldAt + 'T00:00:00').toISOString(),
         customerName: customerName || undefined,
         paymentMethod,
         currency,
@@ -151,9 +158,9 @@ export default function BookSalesPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date & time</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
               <input
-                type="datetime-local"
+                type="date"
                 value={soldAt}
                 onChange={(e) => setSoldAt(e.target.value)}
                 className="input"
@@ -305,7 +312,7 @@ export default function BookSalesPage() {
                 {sales.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="text-gray-600">
-                      {new Date(s.soldAt).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(s.soldAt).toLocaleDateString(undefined, { dateStyle: 'short' })}
                     </td>
                     <td>{s.customerName ?? '–'}</td>
                     <td className="font-semibold">{Number(s.totalAmount).toLocaleString()} {s.currency}</td>
@@ -315,14 +322,25 @@ export default function BookSalesPage() {
                     <td>{s.paymentMethod}</td>
                     <td>{s.items.length} item(s)</td>
                     <td>
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(s)}
-                        className="p-2 text-gray-500 hover:text-pink-600 hover:bg-pink-50 rounded"
-                        title="Edit sale"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(s)}
+                          className="p-2 text-gray-400 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSale(s)}
+                          disabled={deleteMutation.isPending}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

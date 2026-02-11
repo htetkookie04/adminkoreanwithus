@@ -300,6 +300,13 @@ export async function updateBookSale(id: string, data: UpdateBookSalePayload) {
   return res.data
 }
 
+export async function deleteBookSale(id: string) {
+  const res = await api.delete<{ success: boolean; data: { id: string; deleted: boolean } }>(
+    `${base}/book-sales/${id}`
+  )
+  return res.data
+}
+
 // Payroll
 export async function fetchPayroll(month: string) {
   const res = await api.get<{ success: boolean; data: Payroll[] }>(

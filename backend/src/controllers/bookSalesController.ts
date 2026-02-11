@@ -334,3 +334,30 @@ export const updateBookSale = async (req: AuthRequest, res: Response, next: Next
     next(error);
   }
 };
+
+export const deleteBookSale = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const saleId = req.params.id as string;
+    if (!saleId) throw new AppError('Sale ID required', 400);
+
+    const existing = await prisma.bookSale.findUnique({ where: { id: saleId } });
+    if (!existing) throw new AppError('Book sale not found', 404);
+
+    await prisma.$transaction(async (tx) => {
+      const linked = await tx.financeTransaction.findFirst({
+        where: { referenceType: 'BOOK_SALE', referenceId: saleId, isDeleted: false }
+      });
+      if (linked) {
+        await tx.financeTransaction.update({
+          where: { id: linked.id },
+          data: { isDeleted: true }
+        });
+      }
+      await tx.bookSale.delete({ where: { id: saleId } });
+    });
+
+    res.json({ success: true, data: { id: saleId, deleted: true } });
+  } catch (error) {
+    next(error);
+  }
+};

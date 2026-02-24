@@ -3,6 +3,19 @@ import { pool } from '../db';
 import { AppError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
 
+// SECURITY: Allowlist of keys that can be updated via API. Prevents arbitrary config overwrite.
+const ALLOWED_SETTING_KEYS = new Set([
+  'site_name',
+  'contact_email',
+  'contact_phone',
+  'footer_text',
+  'maintenance_mode',
+  'feature_flags',
+  'max_upload_mb',
+  'default_timezone'
+  // Add other safe, app-defined keys here. Do not allow arbitrary keys.
+]);
+
 export const getSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const result = await pool.query('SELECT * FROM settings ORDER BY key');
@@ -26,6 +39,12 @@ export const updateSetting = async (req: AuthRequest, res: Response, next: NextF
     const { key } = req.params;
     const { value } = req.body;
 
+    if (!key || typeof key !== 'string' || !/^[a-zA-Z0-9_]+$/.test(key)) {
+      throw new AppError('Invalid setting key', 400);
+    }
+    if (!ALLOWED_SETTING_KEYS.has(key)) {
+      throw new AppError('Setting key is not allowed to be updated via API', 400);
+    }
     if (value === undefined) {
       throw new AppError('Value is required', 400);
     }

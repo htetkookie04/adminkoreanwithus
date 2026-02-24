@@ -116,14 +116,38 @@ export const createBookSale = async (req: AuthRequest, res: Response, next: Next
     }
 
     const { soldAt, customerName, paymentMethod, currency, items } = parsed.data;
-    const totalAmount = items.reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
 
+    // SECURITY FIX: Fetch prices from database, don't trust client-provided prices
     const bookIds = [...new Set(items.map((i) => i.bookId))];
     const books = await prisma.book.findMany({
       where: { id: { in: bookIds } },
-      select: { id: true, costPrice: true }
+      select: { id: true, salePrice: true, costPrice: true, isActive: true }
     });
+
+    // Validate all books exist and are active
+    if (books.length !== bookIds.length) {
+      throw new AppError('One or more books not found', 404);
+    }
+
+    const inactiveBooks = books.filter(b => !b.isActive);
+    if (inactiveBooks.length > 0) {
+      throw new AppError(`Cannot sell inactive books: ${inactiveBooks.map(b => b.id).join(', ')}`, 400);
+    }
+
+    // Create maps for server-side prices
+    const bookSalePriceMap = new Map(books.map((b) => [b.id, Number(b.salePrice)]));
     const bookCostMap = new Map(books.map((b) => [b.id, b.costPrice != null ? Number(b.costPrice) : null]));
+
+    // SECURITY: Recalculate total using server-side prices (ignore client-provided unitPrice)
+    let totalAmount = 0;
+    for (const item of items) {
+      const serverPrice = bookSalePriceMap.get(item.bookId);
+      if (!serverPrice) {
+        throw new AppError(`Book ${item.bookId} not found or inactive`, 404);
+      }
+      // Use server price, not client price
+      totalAmount += item.qty * serverPrice;
+    }
 
     let totalProfit = 0;
     let costPriceMissing = false;
@@ -148,13 +172,20 @@ export const createBookSale = async (req: AuthRequest, res: Response, next: Next
         }
       });
 
+      // SECURITY: Use server-side prices when creating sale items
       await tx.bookSaleItem.createMany({
-        data: items.map((i) => ({
-          saleId: saleRecord.id,
-          bookId: i.bookId,
-          qty: i.qty,
-          unitPrice: new Decimal(i.unitPrice)
-        }))
+        data: items.map((i) => {
+          const serverPrice = bookSalePriceMap.get(i.bookId);
+          if (!serverPrice) {
+            throw new AppError(`Book ${i.bookId} not found`, 404);
+          }
+          return {
+            saleId: saleRecord.id,
+            bookId: i.bookId,
+            qty: i.qty,
+            unitPrice: new Decimal(serverPrice) // Use server price, not client price
+          };
+        })
       });
 
       const note = `Book sale gross=${totalAmount}, profit=${totalProfit}`;
@@ -258,16 +289,24 @@ export const updateBookSale = async (req: AuthRequest, res: Response, next: Next
 
       const itemsAfter = await tx.bookSaleItem.findMany({
         where: { saleId },
-        include: { book: { select: { id: true, costPrice: true } } }
+        include: { book: { select: { id: true, salePrice: true, costPrice: true } } }
       });
 
+      // SECURITY: Recalculate using server-side prices from database
       let totalAmount = 0;
       let totalProfit = 0;
       for (const i of itemsAfter) {
-        const up = Number(i.unitPrice);
+        // Use book's salePrice from database, not stored unitPrice (which may have been manipulated)
+        const serverPrice = Number(i.book.salePrice);
         const cost = i.book.costPrice != null ? Number(i.book.costPrice) : 0;
-        totalAmount += i.qty * up;
-        totalProfit += (up - cost) * i.qty;
+        totalAmount += i.qty * serverPrice;
+        totalProfit += (serverPrice - cost) * i.qty;
+        
+        // Update stored unitPrice to match server price (in case it was different)
+        await tx.bookSaleItem.update({
+          where: { id: i.id },
+          data: { unitPrice: new Decimal(serverPrice) }
+        });
       }
 
       const soldAt = payload.soldAt != null ? parseDate(payload.soldAt) : existing.soldAt;

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler';
+import { apiLimiter, authLimiter, uploadLimiter } from './middleware/rateLimiter';
 import { authRouter } from './routes/auth';
 import { usersRouter } from './routes/users';
 import { coursesRouter } from './routes/courses';
@@ -25,11 +26,36 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// SECURITY: Trust first proxy so req.ip and rate limiters use client IP when behind reverse proxy.
+// Set to 2 if behind two proxies (e.g. load balancer + app server). Never trust arbitrary X-Forwarded-For without this.
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
 }));
+
+// SECURITY: Apply rate limiting globally
+app.use('/api', apiLimiter);
 
 // CORS configuration - allow multiple origins
 const allowedOrigins = [
@@ -42,19 +68,28 @@ const allowedOrigins = [
 // CORS configuration
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // SECURITY FIX: In production, require origin
+    if (!origin) {
+      // Allow requests with no origin only in development (mobile apps, Postman, etc.)
+      if (process.env.NODE_ENV === 'development') {
+        return callback(null, true);
+      }
+      return callback(new Error('CORS: Origin required in production'), false);
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      callback(null, true); // Allow all origins for now, can restrict later
+      console.error('CORS blocked origin:', origin);
+      // SECURITY FIX: Don't allow all origins - reject unauthorized origins
+      callback(new Error('Not allowed by CORS'), false);
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['RateLimit-Remaining', 'RateLimit-Reset'],
+  maxAge: 86400, // 24 hours - cache preflight requests
   preflightContinue: false,
   optionsSuccessStatus: 204
 };

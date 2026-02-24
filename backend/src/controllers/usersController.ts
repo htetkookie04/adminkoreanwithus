@@ -101,6 +101,7 @@ export const getUsers = async (req: AuthRequest, res: Response, next: NextFuncti
 export const getUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.user!;
 
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
@@ -111,6 +112,14 @@ export const getUser = async (req: AuthRequest, res: Response, next: NextFunctio
 
     if (!user) {
       throw new AppError('User not found', 404);
+    }
+
+    // SECURITY: Check ownership or admin role
+    // Users can only view their own profile unless they are admin/super_admin
+    if (requestingUser.id !== parseInt(id) && 
+        requestingUser.roleName !== 'super_admin' && 
+        requestingUser.roleName !== 'admin') {
+      throw new AppError('Access denied: You can only view your own profile', 403);
     }
 
     // Format response to match expected format
@@ -214,6 +223,37 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
   try {
     const { id } = req.params;
     const { firstName, lastName, phone, roleId, status } = req.body;
+    const requestingUser = req.user!;
+
+    // SECURITY: Check ownership or admin role
+    const targetUserId = parseInt(id);
+    const isOwnProfile = requestingUser.id === targetUserId;
+    const isAdmin = requestingUser.roleName === 'super_admin' || requestingUser.roleName === 'admin';
+
+    if (!isOwnProfile && !isAdmin) {
+      throw new AppError('Access denied: You can only update your own profile', 403);
+    }
+
+    // SECURITY: Prevent privilege escalation - regular users cannot change their own role
+    if (roleId !== undefined && !isAdmin) {
+      throw new AppError('Access denied: You cannot change your own role', 403);
+    }
+
+    // SECURITY: Regular users cannot change their own status
+    if (status !== undefined && !isAdmin) {
+      throw new AppError('Access denied: You cannot change your own status', 403);
+    }
+
+    // SECURITY: Prevent admin from demoting super_admin
+    if (roleId !== undefined && isAdmin && requestingUser.roleName !== 'super_admin') {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        include: { role: true }
+      });
+      if (targetUser?.role.name === 'super_admin') {
+        throw new AppError('Access denied: Cannot modify super_admin role', 403);
+      }
+    }
 
     // Build update data
     const updateData: any = {};
@@ -221,15 +261,15 @@ export const updateUser = async (req: AuthRequest, res: Response, next: NextFunc
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
     if (phone !== undefined) updateData.phone = phone;
-    if (roleId !== undefined) updateData.roleId = roleId;
-    if (status !== undefined) updateData.status = status;
+    if (roleId !== undefined && isAdmin) updateData.roleId = roleId;
+    if (status !== undefined && isAdmin) updateData.status = status;
 
     if (Object.keys(updateData).length === 0) {
       throw new AppError('No fields to update', 400);
     }
 
     const user = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id: targetUserId },
       data: updateData,
       include: {
         role: true
@@ -284,8 +324,19 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
       throw new AppError('Current password and new password are required', 400);
     }
 
-    if (newPassword.length < 6) {
-      throw new AppError('New password must be at least 6 characters long', 400);
+    // SECURITY: Enforce stronger password requirements
+    if (newPassword.length < 8) {
+      throw new AppError('New password must be at least 8 characters long', 400);
+    }
+    
+    // Check for password complexity
+    const hasUpperCase = /[A-Z]/.test(newPassword);
+    const hasLowerCase = /[a-z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    const hasSpecialChar = /[^A-Za-z0-9]/.test(newPassword);
+    
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      throw new AppError('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character', 400);
     }
 
     // AUTHORIZATION: Users can only change their own password (unless they are super_admin)
@@ -348,14 +399,31 @@ export const changePassword = async (req: AuthRequest, res: Response, next: Next
 export const deleteUser = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.user!;
+
+    // SECURITY: Only admin/super_admin can delete users
+    if (requestingUser.roleName !== 'super_admin' && requestingUser.roleName !== 'admin') {
+      throw new AppError('Access denied: Only administrators can delete users', 403);
+    }
+
+    // SECURITY: Prevent self-deletion
+    if (requestingUser.id === parseInt(id)) {
+      throw new AppError('Access denied: You cannot delete your own account', 403);
+    }
 
     // Check if user exists before deleting
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id) },
+      include: { role: true }
     });
 
     if (!user) {
       throw new AppError('User not found', 404);
+    }
+
+    // SECURITY: Prevent admin from deleting super_admin
+    if (requestingUser.roleName !== 'super_admin' && user.role.name === 'super_admin') {
+      throw new AppError('Access denied: Only super_admin can delete super_admin accounts', 403);
     }
 
     // Permanently delete user from database

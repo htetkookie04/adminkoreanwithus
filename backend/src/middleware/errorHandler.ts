@@ -73,34 +73,30 @@ export const errorHandler = (
   console.error(err.stack || 'No stack trace available');
   console.error('═══════════════════════════════════════════════════════');
   
-  // Check for common error types
+  // SECURITY: In production, never expose internal error details (DB, stack, codes)
   let errorMessage = 'Internal server error';
   let statusCode = 500;
-  
-  if (process.env.NODE_ENV !== 'production') {
-    // In development, show detailed error
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (!isProduction) {
     errorMessage = err.message || 'An unexpected error occurred';
-    
-    // Check for Prisma errors
     if ((err as any).code?.startsWith('P')) {
       errorMessage = `Database error: ${err.message}`;
       console.error('🔍 Prisma Error Code:', (err as any).code);
     }
-    
-    // Check for database connection errors
     if (err.message?.includes('connect') || err.message?.includes('ECONNREFUSED')) {
       errorMessage = 'Database connection failed. Check DATABASE_URL and ensure PostgreSQL is running.';
       console.error('🔍 Database Connection Error Detected');
     }
   }
-  
+
   res.status(statusCode).json({
     success: false,
     message: errorMessage,
     error: {
       message: errorMessage,
       statusCode: statusCode,
-      ...(process.env.NODE_ENV !== 'production' && {
+      ...(!isProduction && {
         type: err.constructor.name,
         code: (err as any).code,
         stack: err.stack

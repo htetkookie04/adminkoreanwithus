@@ -113,6 +113,8 @@ export const getInquiry = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
+const MAX_LENGTH = { name: 200, email: 255, phone: 50, subject: 500, message: 5000, source: 100 };
+
 export const createInquiry = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, email, phone, subject, message, source } = req.body as any;
@@ -121,11 +123,28 @@ export const createInquiry = async (req: Request, res: Response, next: NextFunct
       throw new AppError('Name, email, and message are required', 400);
     }
 
+    const n = String(name).trim();
+    const e = String(email).trim().toLowerCase();
+    const m = String(message).trim();
+    if (!n || !e || !m) {
+      throw new AppError('Name, email, and message are required', 400);
+    }
+    if (n.length > MAX_LENGTH.name) throw new AppError(`Name must be at most ${MAX_LENGTH.name} characters`, 400);
+    if (e.length > MAX_LENGTH.email) throw new AppError(`Email must be at most ${MAX_LENGTH.email} characters`, 400);
+    if (m.length > MAX_LENGTH.message) throw new AppError(`Message must be at most ${MAX_LENGTH.message} characters`, 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new AppError('Invalid email format', 400);
+    const phoneVal = phone != null ? String(phone).trim() : null;
+    const subjVal = subject != null ? String(subject).trim() : null;
+    const srcVal = source != null ? String(source).trim() : 'website';
+    if (phoneVal && phoneVal.length > MAX_LENGTH.phone) throw new AppError(`Phone must be at most ${MAX_LENGTH.phone} characters`, 400);
+    if (subjVal && subjVal.length > MAX_LENGTH.subject) throw new AppError(`Subject must be at most ${MAX_LENGTH.subject} characters`, 400);
+    if (srcVal.length > MAX_LENGTH.source) throw new AppError(`Source must be at most ${MAX_LENGTH.source} characters`, 400);
+
     const result = await pool.query(
       `INSERT INTO inquiries (name, email, phone, subject, message, source)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, email, phone, subject, message, source || 'website']
+      [n, e, phoneVal, subjVal || null, m, srcVal]
     );
 
     // TODO: Send notification email to support team

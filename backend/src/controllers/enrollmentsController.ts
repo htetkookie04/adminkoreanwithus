@@ -127,6 +127,7 @@ export const getEnrollments = async (req: AuthRequest, res: Response, next: Next
 export const getEnrollment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.user!;
 
     const enrollment = await prisma.enrollment.findUnique({
       where: { id: parseInt(id) },
@@ -158,6 +159,21 @@ export const getEnrollment = async (req: AuthRequest, res: Response, next: NextF
 
     if (!enrollment) {
       throw new AppError('Enrollment not found', 404);
+    }
+
+    // SECURITY: Check ownership or admin role
+    // Users can only view their own enrollments unless they are admin/super_admin
+    const isOwnEnrollment = enrollment.userId === requestingUser.id;
+    const isAdmin = requestingUser.roleName === 'super_admin' || requestingUser.roleName === 'admin';
+    
+    // Teachers can view enrollments for their courses
+    let isTeacher = false;
+    if (enrollment.schedule?.teacherId === requestingUser.id) {
+      isTeacher = true;
+    }
+
+    if (!isOwnEnrollment && !isAdmin && !isTeacher) {
+      throw new AppError('Access denied: You can only view your own enrollments', 403);
     }
 
     // Format response
@@ -308,42 +324,83 @@ export const updateEnrollment = async (req: AuthRequest, res: Response, next: Ne
   try {
     const { id } = req.params;
     const { status, notes, paymentStatus } = req.body;
+    const requestingUser = req.user!;
+
+    // SECURITY: Get enrollment first to check ownership
+    const currentEnrollment = await prisma.enrollment.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        schedule: {
+          select: { teacherId: true }
+        }
+      }
+    });
+
+    if (!currentEnrollment) {
+      throw new AppError('Enrollment not found', 404);
+    }
+
+    // SECURITY: Authorization checks
+    const isOwnEnrollment = currentEnrollment.userId === requestingUser.id;
+    const isAdmin = requestingUser.roleName === 'super_admin' || requestingUser.roleName === 'admin';
+    const isTeacher = currentEnrollment.schedule?.teacherId === requestingUser.id;
+
+    // SECURITY: Payment status can only be changed by admin/super_admin
+    // Regular users cannot manipulate payment status to get free courses
+    if (paymentStatus !== undefined && !isAdmin) {
+      throw new AppError('Access denied: Only administrators can change payment status', 403);
+    }
+
+    // SECURITY: Status changes require admin/teacher approval
+    // Regular users cannot approve their own enrollments
+    if (status !== undefined && !isAdmin && !isTeacher) {
+      // Users can only cancel their own enrollments
+      if (status === 'cancelled' && isOwnEnrollment) {
+        // Allow self-cancellation
+      } else {
+        throw new AppError('Access denied: You cannot change enrollment status', 403);
+      }
+    }
 
     // Build update data
     const updateData: any = {};
 
-    if (status !== undefined) updateData.status = status;
-    if (notes !== undefined) updateData.notes = notes;
-    if (paymentStatus !== undefined) {
+    if (status !== undefined) {
+      if (isAdmin || isTeacher || (status === 'cancelled' && isOwnEnrollment)) {
+        updateData.status = status;
+      }
+    }
+    
+    if (notes !== undefined) {
+      // Users can add notes to their own enrollments, admins/teachers can add to any
+      if (isOwnEnrollment || isAdmin || isTeacher) {
+        updateData.notes = notes;
+      }
+    }
+    
+    if (paymentStatus !== undefined && isAdmin) {
       updateData.paymentStatus = paymentStatus;
       
       // Automatically update enrollment status based on payment status
-      // Get current enrollment to check existing status
-      const currentEnrollment = await prisma.enrollment.findUnique({
-        where: { id: parseInt(id) }
-      });
-
-      if (currentEnrollment) {
-        // If payment status is being changed, update enrollment status accordingly
-        if (paymentStatus === 'paid') {
-          // When payment is made, approve the enrollment if it's pending
-          if (currentEnrollment.status === 'pending') {
-            updateData.status = 'approved';
-          } else if (currentEnrollment.status === 'cancelled') {
-            // If it was cancelled, reactivate it
-            updateData.status = 'approved';
-          }
-          // If already approved/active/completed, keep the current status
-        } else if (paymentStatus === 'refunded') {
-          // When payment is refunded, cancel the enrollment
-          updateData.status = 'cancelled';
-        } else if (paymentStatus === 'unpaid') {
-          // When payment is unpaid, set to pending if it was approved/active
-          if (currentEnrollment.status === 'approved' || currentEnrollment.status === 'active') {
-            updateData.status = 'pending';
-          }
-          // If already pending/cancelled/completed, keep the current status
+      // If payment status is being changed, update enrollment status accordingly
+      if (paymentStatus === 'paid') {
+        // When payment is made, approve the enrollment if it's pending
+        if (currentEnrollment.status === 'pending') {
+          updateData.status = 'approved';
+        } else if (currentEnrollment.status === 'cancelled') {
+          // If it was cancelled, reactivate it
+          updateData.status = 'approved';
         }
+        // If already approved/active/completed, keep the current status
+      } else if (paymentStatus === 'refunded') {
+        // When payment is refunded, cancel the enrollment
+        updateData.status = 'cancelled';
+      } else if (paymentStatus === 'unpaid') {
+        // When payment is unpaid, set to pending if it was approved/active
+        if (currentEnrollment.status === 'approved' || currentEnrollment.status === 'active') {
+          updateData.status = 'pending';
+        }
+        // If already pending/cancelled/completed, keep the current status
       }
     }
 
@@ -563,6 +620,7 @@ export const rejectEnrollment = async (req: AuthRequest, res: Response, next: Ne
 export const deleteEnrollment = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.user!;
 
     // Check if enrollment exists before deleting
     const enrollment = await prisma.enrollment.findUnique({
@@ -571,6 +629,12 @@ export const deleteEnrollment = async (req: AuthRequest, res: Response, next: Ne
 
     if (!enrollment) {
       throw new AppError('Enrollment not found', 404);
+    }
+
+    // SECURITY: Only admin/super_admin can delete enrollments
+    // Regular users cannot delete enrollments (they should cancel instead)
+    if (requestingUser.roleName !== 'super_admin' && requestingUser.roleName !== 'admin') {
+      throw new AppError('Access denied: Only administrators can delete enrollments', 403);
     }
 
     // Permanently delete enrollment from database

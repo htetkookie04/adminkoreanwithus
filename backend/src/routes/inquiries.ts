@@ -1,5 +1,6 @@
 import { Router, RequestHandler } from 'express';
 import { authenticate, requirePermission } from '../middleware/auth';
+import { inquiryLimiter } from '../middleware/rateLimiter';
 import {
   getInquiries,
   getInquiry,
@@ -10,8 +11,8 @@ import {
 
 export const inquiriesRouter = Router();
 
-// Public route for contact form
-inquiriesRouter.post('/', createInquiry as unknown as RequestHandler);
+// Public route for contact form — SECURITY: rate limit to prevent spam/DoS
+inquiriesRouter.post('/', inquiryLimiter, createInquiry as unknown as RequestHandler);
 
 // Protected routes
 inquiriesRouter.use(authenticate);
